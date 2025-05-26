@@ -3,159 +3,166 @@
 <head>
     <meta charset="utf-8" />
     <title>RRS 아이템 도감</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 0;
-            background: #f0f0f0;
-        }
-        .tabs, .subtabs, .search-bar {
-            display: flex;
-            justify-content: center;
-            margin: -10px 0;
-            padding: 10px;
-            position: sticky;
-            background: #1e1e1e;
-            z-index: 999;
-        }
-        .tabs { top: 0; }
-        .subtabs { top: 42px; }
+<style>
+    body {
+        font-family: sans-serif;
+        margin: 0;
+        background: #f0f0f0;
+    }
 
-        .search-bar { 
-            top: 84px;
-            margin-bottom: -15px;
-        }
+    .tabs, .subtabs, .search-bar {
+        display: flex;
+        flex-wrap: wrap; /* 자동 줄바꿈 허용 */
+        justify-content: center;
+        gap: 6px;
+        padding: 10px;
+        background: #1e1e1e;
+        z-index: 999;
+    }
 
-        .tabs button, .subtabs button {
-            border: none;
-            padding: 10px 20px;
-            margin-right: 5px;
-            cursor: pointer;
-            border-radius: 4px;
-            color: white;
-        }
-        .tabs button { background: #444; }
-        .subtabs button { background: #888; }
-        .tabs button.active, .subtabs button.active {
-            background: #1e90ff;
-        }
+    .tabs { top: 0; }
+    .subtabs { top: 42px; }
+    .search-bar {
+        top: 84px;
+        margin-bottom: -15px;
+    }
 
-        .search-bar input {
-            width: 300px;
-            padding: 6px;
-            font-size: 16px;
-        }
+    .tabs button, .subtabs button {
+        min-width: 70px;
+        max-width: 70px;
+        height: 30px;
+        padding: 5px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        color: white;
+        white-space: nowrap;
+    }
 
-        .item-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: center;
-            padding: 20px;
-        }
+    .tabs button {
+        background: #444;
+    }
 
-        .item-card {
-            width: 293px;
-            height: 480px;
-            position: relative;
-            overflow: hidden;
-        }
+    .subtabs button {
+        background: #888;
+    }
 
-        .image-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
+    .tabs button.active,
+    .subtabs button.active {
+        background: #1e90ff;
+    }
 
-        .bg-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            pointer-events: none;
-        }
+    .search-bar input {
+        width: 300px;
+        padding: 6px;
+        font-size: 16px;
+    }
 
-        .item-image {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            z-index: 1;
-            pointer-events: none;
-            background: transparent;
-        }
+    .item-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: center;
+        padding: 20px;
+    }
 
-        .item-rank {
-            position: absolute;
-            top: 13px;
-            left: 50%;
-            transform: translateX(-43%);
-            font-weight: bold;
-            font-size: 20px;
-            line-height: 1;
-            color: #fff;
-            pointer-events: none;
-            z-index: 2;
-        }
+    .item-card {
+        width: 293px;
+        height: 480px;
+        position: relative;
+        overflow: hidden;
+    }
 
-        .rank-800umu { color: #C800C8 !important; }
-        .rank-900umu { color: #F870F8 !important; }
-        .rank-1000umu { color: #F80000 !important; }
-        .rank-bfu { color: #C88800 !important; }
+    .image-wrapper {
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
 
-        .item-name {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            height: 30px;
-            line-height: 30px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            font-family: "Noto Sans KR", sans-serif;
-            padding: 0 6px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2;
-        }
+    .bg-image,
+    .item-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+    }
 
-        .slot-label {
-            position: absolute;
-            top: 14px;
-            right: 8px;
-            font-size: 12px;
-            color: white;
-            font-weight: bold;
-            user-select: none;
-            pointer-events: none;
-            background: none;
-            border: none;
-            padding: 0;
-            z-index: 2;
-        }
+    .item-image {
+        object-fit: contain;
+        background: transparent;
+        z-index: 1;
+    }
 
-        .sticky-wrapper {
-            position: sticky;
-            top: 0;
-            background: #1e1e1e;
-            z-index: 999;
-            padding-bottom: 18px;
-        }
-        .tabs, .subtabs, .search-bar, .search-hint {
-            position: static;
-        }
+    .bg-image {
+        z-index: 0;
+    }
 
-    </style>
+    .item-rank {
+        position: absolute;
+        top: 13px;
+        left: 50%;
+        transform: translateX(-43%);
+        font-weight: bold;
+        font-size: 20px;
+        line-height: 1;
+        color: #fff;
+        pointer-events: none;
+        z-index: 2;
+    }
+
+    .rank-800umu { color: #C800C8 !important; }
+    .rank-900umu { color: #F870F8 !important; }
+    .rank-1000umu { color: #F80000 !important; }
+    .rank-bfu { color: #C88800 !important; }
+
+    .item-name {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        height: 30px;
+        line-height: 30px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        font-family: "Noto Sans KR", sans-serif;
+        padding: 0 6px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+    }
+
+    .slot-label {
+        position: absolute;
+        top: 14px;
+        right: 8px;
+        font-size: 12px;
+        color: white;
+        font-weight: bold;
+        user-select: none;
+        pointer-events: none;
+        z-index: 2;
+    }
+
+    .sticky-wrapper {
+        position: sticky;
+        top: 0;
+        background: #1e1e1e;
+        z-index: 999;
+        padding-bottom: 18px;
+    }
+
+    .search-hint {
+        position: static;
+    }
+</style>
 </head>
 <body>
   <div class="sticky-wrapper">
