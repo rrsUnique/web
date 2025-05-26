@@ -1,0 +1,2152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <title>아이템 도감</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background: #f0f0f0;
+        }
+        .tabs, .subtabs, .search-bar {
+            display: flex;
+            justify-content: center;
+            margin: -10px 0;
+            padding: 10px;
+            position: sticky;
+            background: #1e1e1e;
+            z-index: 999;
+        }
+        .tabs { top: 0; }
+        .subtabs { top: 42px; }
+
+        .search-bar { 
+            top: 84px;
+            margin-bottom: -15px;
+        }
+
+        .tabs button, .subtabs button {
+            border: none;
+            padding: 10px 20px;
+            margin-right: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: white;
+        }
+        .tabs button { background: #444; }
+        .subtabs button { background: #888; }
+        .tabs button.active, .subtabs button.active {
+            background: #1e90ff;
+        }
+
+        .search-bar input {
+            width: 300px;
+            padding: 6px;
+            font-size: 16px;
+        }
+
+        .item-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .item-card {
+            width: 293px;
+            height: 480px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .image-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .bg-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .item-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 1;
+            pointer-events: none;
+            background: transparent;
+        }
+
+        .item-rank {
+            position: absolute;
+            top: 13px;
+            left: 50%;
+            transform: translateX(-43%);
+            font-weight: bold;
+            font-size: 20px;
+            line-height: 1;
+            color: #fff;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .rank-800umu { color: #C800C8 !important; }
+        .rank-900umu { color: #F870F8 !important; }
+        .rank-1000umu { color: #F80000 !important; }
+        .rank-bfu { color: #C88800 !important; }
+
+        .item-name {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 30px;
+            line-height: 30px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            font-family: "Noto Sans KR", sans-serif;
+            padding: 0 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+
+        .slot-label {
+            position: absolute;
+            top: 14px;
+            right: 8px;
+            font-size: 12px;
+            color: white;
+            font-weight: bold;
+            user-select: none;
+            pointer-events: none;
+            background: none;
+            border: none;
+            padding: 0;
+            z-index: 2;
+        }
+
+        .sticky-wrapper {
+            position: sticky;
+            top: 0;
+            background: #1e1e1e;
+            z-index: 999;
+            padding-bottom: 18px;
+        }
+        .tabs, .subtabs, .search-bar, .search-hint {
+            position: static;
+        }
+
+    </style>
+</head>
+<body>
+  <div class="sticky-wrapper">
+    <div class="tabs" id="tabs"></div>
+    <div class="subtabs" id="subtabs"></div>
+    <div class="search-bar">
+      <input id="searchInput" oninput="renderItems()" placeholder="아이템 이름 또는 800,900,1000,BFU 검색" title="예: 아이템 이름, 800, 900 등급" type="text" />
+    </div>
+</div>
+    <div class="item-grid" id="itemGrid"></div>
+
+  <script>
+    const itemData = {
+      "무기": {
+        "한손검": [
+                        { "이름": "오르크리스트 / Orclist / オルクリスト", "이미지": "orcrist" },
+                        { "이름": "안두릴 / Andril / アンドゥリル", "이미지": "anduril" },
+                        { "이름": "엑스칼리버 / Excalibur / エクスカリバー", "이미지": "excalibur" },
+                        { "이름": "플레어크레센트 / Flare crescent / フレアークレセント", "이미지": "flare_crescent" },
+                        { "이름": "추풍낙엽 / Fall wind fallen leaves / 秋風落葉", "이미지": "fall_wind" },
+                        { "이름": "일지매 도 / One branch plum sword / 一枝梅の刀", "이미지": "plum_sword" },
+                        { "이름": "올드개머 / Old Garma / オールドガーマ", "이미지": "old_garma" },
+                        { "이름": "파이톤레이저 / Python Razor / パイソンレイザー", "이미지": "python_razor" },
+                        { "이름": "블러드위스커 / Blood whisker / ブラッドウィスカー", "이미지": "blood_whisker" },
+                        { "이름": "와이드핸드 / Wide hand / ワイドハンド", "이미지": "wide_hand" },
+                        { "이름": "고퍼의 희망 / Gofa's Hope / ゴーファの希望", "이미지": "gofa_hope" },
+                        { "이름": "장작 도끼 / Chopstick chopsticks / 薪割り斧", "이미지": "chop_axe" },
+                        { "이름": "맙푸스 테일 / Map Stile / マップステイル", "이미지": "map_tail" },
+                        { "이름": "용암풍 / Lava Storm / ラヴァストーム", "이미지": "lava_storm" },
+                        { "이름": "칠드 프로미넌스 / Chilled prominence / チルドプロミネンス", "이미지": "chilled_prominence" },
+                        { "이름": "스킬 레볼루션 / Skill Revolution / スキルレボリューション", "이미지": "skill_revolution" },
+                        { "이름": "컨스트럭트롬 / Construct Rome / コンストラクトローマ", "이미지": "construct_rome" },
+                        { "이름": "전설의 검 / Legend Sword / レジェンドソード", "이미지": "legend_sword" },
+                        { "이름": "솔라 이클립스 / Solar Eclipse / ソーラーエクリプス", "이미지": "solar_eclipse" },
+                        { "이름": "블루 스카 / Blues car / ブルースカー", "이미지": "blues_car" },
+                        { "이름": "홀리비스트 슬래셔 / Holy Beast Slayer / ホーリービーストスレイヤー", "이미지": "holy_slasher" },
+                        { "이름": "스톰 오버로드 / Storm overload / ストームオーバーロード", "이미지": "storm_overload" },
+                        { "이름": "한탄의 외침 / Sopharyngeal sword / 哀咽剣", "이미지": "cry_sword" },
+                        { "이름": "옵시디안 소드 / Oopsian Sword / オプシディアンソード", "이미지": "obsidian_sword" },
+                        { "이름": "스파크 세이버 / Spark saver / スパークセーバー", "이미지": "spark_saber" },
+                        { "이름": "위자드 프리커 / Wizard Flicker / ウィザードフリッカー", "이미지": "wizard_flicker" },
+                        { "이름": "캣츠 아이 / Cats eye / キャッツアイ", "이미지": "cats_eye" },
+                        { "이름": "포트 브리지헤드 / Port bridge head / ポートブリッジヘッド", "이미지": "port_bridgehead" },
+                        { "이름": "페이틀 뷰티 / Fatal Beauty / ファタールビューティ", "이미지": "fatal_beauty" },
+                        { "이름": "이레귤러 아리안 / Irregular Aryan / イレギュラーアリアン", "이미지": "irregular_arian" },
+                        { "이름": "인덕션 키트 / Induction kit / インダクションキット", "이미지": "induction_kit" },
+                        { "이름": "발골도 / Deborn knife / デボーンナイフ", "이미지": "debone_knife" },
+                        { "이름": "게나왐 17 / Genawam picking seven / ゲナワム拾七", "이미지": "genawam17" },
+                        { "이름": "앤션트 캐슬 / Ancient Castle / エンシェントキャッスル", "이미지": "ancient_castle" },
+                        { "이름": "절대 행운 영역 / Absolute Truckee / アブソリュートラッキー", "이미지": "absolute_lucky" },
+                        { "이름": "캐러번 아웃핏 / Caravan Outfit / キャラバンアウトフィット", "이미지": "caravan_outfit" },
+                        { "이름": "그레인 하베스터 / Grain harvest / グレインハーベスト", "이미지": "grain_harvester" },
+                        { "이름": "채굴도끼 / Miner / 採掘斧", "이미지": "mining_axe" },
+                        { "이름": "맹우 / Ally / 盟友", "이미지": "ally", "등급": "800UMU" },
+                        { "이름": "서풍의 칼날 / West wind blade / 西風の刃", "이미지": "west_blade", "등급": "800UMU" },
+                        { "이름": "만곡도 / Jojo / 馬上刀", "이미지": "curved_sword", "등급": "900UMU" },
+                        { "이름": "마검 슬레이니르 / Angraher / アングラヘル", "이미지": "slainir", "등급": "900UMU" },
+                        { "이름": "차원의 눈 / Eye of Dimensions / 次元の目", "이미지": "eye_dimension", "등급": "1000UMU" },
+                        { "이름": "폭풍의 눈 / Eye of the Storm / 嵐の目", "이미지": "eye_storm", "등급": "1000UMU" }
+                  ],
+        "양손검": [
+                        { "이름": "페디그리드 / Pedi greed / ぺディグリード", "이미지": "paddygrid" },
+                        { "이름": "드래곤 슬레이어 / Dragon Slayer / ドラゴンスレイヤー", "이미지": "dragonslayer" },
+                        { "이름": "자우버모르더 / Sauba molder / ザウバモルダー", "이미지": "saubamolder" },
+                        { "이름": "슈타인헨더 / Steinhander / シュタインハンダー", "이미지": "steinhander" },
+                        { "이름": "빅 세이지 / Big Sage / ビッグ・セイジ", "이미지": "bigsage" },
+                        { "이름": "가이스터스톡 / Geisterstock / ガイスターストック", "이미지": "geisterstock" },
+                        { "이름": "골든 클리버 / Golden clever / ゴールデンクリーバー", "이미지": "goldenclever" },
+                        { "이름": "코스웨일 / Cosweal / コスウェール", "이미지": "cosweal" },
+                        { "이름": "자단 목검 / Purple Sword / 紫檀剣", "이미지": "purplesword" },
+                        { "이름": "리얼 하이브리드 / Real hybrid / リアルハイブリッド", "이미지": "realhybrid" },
+                        { "이름": "지룡의 용틀임 / Dragon Dragon Sword / 土龍震剣", "이미지": "dragondragonsword" },
+                        { "이름": "드래곤 트위스터 / Dragon Twister / ドラゴンツイスター", "이미지": "dragontwister" },
+                        { "이름": "구울 검 / Goole Sword / グールソード", "이미지": "goolesword" },
+                        { "이름": "하이랜더의 검 / Highlander Sword / ハイランダーソード", "이미지": "highlandersword" },
+                        { "이름": "거츠 글로리 / Guts Glory / ガッツグローリー", "이미지": "gutsglory" },
+                        { "이름": "도살검 / Slaughter blade / スローターブレード", "이미지": "slaughterblade" },
+                        { "이름": "크샨타리파 / Kushantalipa / クシャンタリパ", "이미지": "kushantalipa" },
+                        { "이름": "강철의 정의 / Steel Justice / スティールジャスティス", "이미지": "steeljustice" },
+                        { "이름": "마사무네 / Masamune / 正宗", "이미지": "masamune" },
+                        { "이름": "디멘젼 슬래셔 / Dimension Slayer / ディメンションスレイヤー", "이미지": "dimensionslayer" },
+                        { "이름": "프렌지 액스 / Frenzy Ax / フレンジーアックス", "이미지": "frenzyax" },
+                        { "이름": "신월 / New moon / 新月", "이미지": "newmoon" },
+                        { "이름": "미르의 전부 / Mir's Battle / ミールの戦斧", "이미지": "mirsbattle" },
+                        { "이름": "플라티넘 액스 / Platinum Ax / プラチナアックス", "이미지": "platinumax" },
+                        { "이름": "심판자의 혼백 / Referee's Soul / 審判者の魂魄", "이미지": "refereessoul", "등급": "800UMU"  },
+                        { "이름": "초현 / First string / 初弦", "이미지": "firststring", "등급": "800UMU"  },
+                        { "이름": "마의 업화 / Makai of Fire / 魔界の業火", "이미지": "makaioffire", "등급": "900UMU"  },
+                        { "이름": "드래곤 브레스 / Helgrim / ヘルグリム", "이미지": "helgrim", "등급": "900UMU"  },
+                        { "이름": "바람신의 손길 / Hand of the Wind God / 風神の手", "이미지": "handofthewindgod", "등급": "1000UMU"  },
+                        { "이름": "해풍의 군무 / Sea Breeze Dance / 海風の群舞", "이미지": "seabreezedance", "등급": "1000UMU"  }
+                  ],
+        "창": [
+                        { "이름": "성창 / Holy hail / 聖なる槍", "이미지": "holyhail" },
+                        { "이름": "시버파일 / Server file / セヴァーファイル", "이미지": "serverfile" },
+                        { "이름": "윈터크로우 / Winter Crow / ウィンタークロウ", "이미지": "wintercrow" },
+                        { "이름": "레드스페이더 / Red spacer / レッドスペイダー", "이미지": "redspacer" },
+                        { "이름": "폴라핀 / Paula Pin / ポーラ・ピン", "이미지": "paulapin" },
+                        { "이름": "호스킬러 / Hose killer / ホースキラー", "이미지": "hosekiller" },
+                        { "이름": "타이달포스트 / Tidal post / タイダルポスト", "이미지": "tidalpost" },
+                        { "이름": "더블팽 / Double fang / ダブルファング", "이미지": "doublefang" },
+                        { "이름": "빅아이의 파수꾼 / Big eye watchman / ビッグアイの見張り", "이미지": "bigeyewatchman" },
+                        { "이름": "청룡언월도 / Blue Dragon Samurai / 青龍偃月刀", "이미지": "bluedragonsamurai" },
+                        { "이름": "노터리어스-디케이 / Notorious Decay / ノトリアス・ディケイ", "이미지": "notoriousdecay" },
+                        { "이름": "보어클랜 / Boa Clan / ボア・クラン", "이미지": "boaclan" },
+                        { "이름": "에임스팟 / Aim spot / エイムスポット", "이미지": "aimspot" },
+                        { "이름": "쌍창 / Double spear / ダブルスピア", "이미지": "doublespear" },
+                        { "이름": "윌리윌리 / Willie willie / ウィリーウィリー", "이미지": "williewillie" },
+                        { "이름": "플라잉 버트리스 / Flying buttress / フライングバットレス", "이미지": "flyingbuttress" },
+                        { "이름": "현자의 창 / Sage of the sage / 賢者の槍", "이미지": "sageofthesage" },
+                        { "이름": "쓰리 바스 / Three hit / スリーヒット", "이미지": "threehit" },
+                        { "이름": "전설의 마방진 / Mishic Square / ミシックスクエア", "이미지": "mishicsquare" },
+                        { "이름": "포졸용 삼지창 / Saegusa Saegusa / 兵卒用三枝槍", "이미지": "saegusasaegusa" },
+                        { "이름": "머먼 텅 / Mermantan / マーマンタン", "이미지": "mermantan" },
+                        { "이름": "장팔사모 / Champalsamo / チャンパルサモ", "이미지": "champalsamo" },
+                        { "이름": "데몬 위스퍼링 / Demon Whisperin / デモンウィスパリン", "이미지": "demonwhisperin" },
+                        { "이름": "듀얼 커스피드 / Dual caspid / デュアルカスピッド", "이미지": "dualcaspid" },
+                        { "이름": "스타우트 펠로우 / Stout Ferlow / スタウトフェロウ", "이미지": "stoutferlow" },
+                        { "이름": "메디테이션 폴 / Meditation pole / メディテーションポール", "이미지": "meditationpole" },
+                        { "이름": "엘리안 하이헬드 / Elian High Hold / エリアンハイへルド", "이미지": "elianhighhold" },
+                        { "이름": "사신의낫 / Death size / デスサイズ", "이미지": "deathsize" },
+                        { "이름": "워터폴 / Waterfall of Takinami / 滝波の槍", "이미지": "waterfalloftakinami" },
+                        { "이름": "춘란 / Chunlan / 春蘭", "이미지": "chunlan" },
+                        { "이름": "반골장 / Unleashing staff / アンイールディングスタッフ", "이미지": "unleashingstaff" },
+                        { "이름": "나기나타 / Sword / 薙刀", "이미지": "naginata" },
+                        { "이름": "프레자일 닙 / Fragile nip / フラジールニップ", "이미지": "fragilenip" },
+                        { "이름": "견고한 끝 / Solid point / 堅固な先", "이미지": "solidpoint", "등급": "800UMU"  },
+                        { "이름": "백절불회 / One hundred fifty / 百折不悔", "이미지": "onehundredfifty", "등급": "800UMU"  },
+                        { "이름": "사극의 마창 / Rotting black thorns / 腐敗の黒き棘", "이미지": "rottingblackthorns", "등급": "900UMU"  },
+                        { "이름": "하르테아 / Haltea / ハルテア", "이미지": "haltea", "등급": "900UMU"  },
+                        { "이름": "비룡의 발톱 / Flying Dragon's Claw / 飛龍の爪", "이미지": "flyingdragonsclaw", "등급": "1000UMU"  },
+                        { "이름": "진홍 해일 / Crimson Tsunami / 深紅の津波", "이미지": "crimsontsunami", "등급": "1000UMU"  }
+                  ],
+        "활": [
+                        { "이름": "샤프벤더 / Sharp bender / シャープベンダー", "이미지": "sharpbender" },
+                        { "이름": "레인저스기어 / Rangers Gear / レンジャース・ギア", "이미지": "rangersgear" },
+                        { "이름": "스톤 보우 / Stonebow / ストーンボウ", "이미지": "stonebow" },
+                        { "이름": "팔코탤론 / Falco Talon / ファルコタロン", "이미지": "falcotalon" },
+                        { "이름": "고어스파우트 / Gore Spout / ゴア・スパウト", "이미지": "gorespout" },
+                        { "이름": "세븐페어 / Seven pair / セブンペア", "이미지": "sevenpair" },
+                        { "이름": "워터멜론 / Watermelon / ウォーターメロン", "이미지": "watermelon" },
+                        { "이름": "가녀린 시위 / Slender Bow / スレンダーボウ", "이미지": "slenderbow" },
+                        { "이름": "앱솔루트 제로 / Absolute zero / アブソリュートゼロ", "이미지": "absolutezero" },
+                        { "이름": "하이피델리티 / High fidelity / ハイフィデリティ", "이미지": "highfidelity" },
+                        { "이름": "캐러비언 애저 / Caribbean Azur / カリビアンアズール", "이미지": "caribbeanazur" },
+                        { "이름": "화랑의 활 / Haran's bow / ハランの弓", "이미지": "haransbow" },
+                        { "이름": "식스 스트링 핫 샷 / Six thread bursting bow / 六糸烈撃弓", "이미지": "sixthreadburstingbow" },
+                        { "이름": "싸우전드 벨스 / Suzu bow / 千鈴の弓", "이미지": "suzubow" },
+                        { "이름": "엑스밴드 / X band / エックスバンド", "이미지": "xband" },
+                        { "이름": "힘의 활 / Bow of power / 力の弓", "이미지": "bowofpower" },
+                        { "이름": "하프 니들 / Harp needle / ハープニードル", "이미지": "harpneedle" },
+                        { "이름": "데빌 머신건 / Devil machine gun / デビルマシンガン", "이미지": "devilmachinegun" },
+                        { "이름": "지식의 활 / Bow of knowledge / 知識の弓", "이미지": "bowofknowledge" },
+                        { "이름": "각궁 / Corner bow / 角の弓", "이미지": "cornerbow" },
+                        { "이름": "블레이즈 디바이스 / Blaze device / ブレイズデバイス", "이미지": "blazedevice" },
+                        { "이름": "스트라이커 / striker / ストライカー", "이미지": "striker", "등급": "800UMU"  },
+                        { "이름": "독안 / Single eye / 毒眼", "이미지": "singleeye", "등급": "800UMU"  },
+                        { "이름": "천궁 / Wailing bow / 嘆きの弓", "이미지": "wailingbow", "등급": "900UMU"  },
+                        { "이름": "파이어 이럽션 / Fire Elption / ファイアエルプション", "이미지": "fireelption", "등급": "900UMU"  },
+                        { "이름": "사형 선고자 / Execution Dew / 刑場の露", "이미지": "executiondew", "등급": "1000UMU"  },
+                        { "이름": "강습자 / Assaulter / 強襲者", "이미지": "assaulter", "등급": "1000UMU"  }
+                  ],
+        "지팡이": [
+                        { "이름": "룸 스틱 / Room cane / ルーム杖", "이미지": "roomcane" },
+                        { "이름": "완다완드 / Wonder wand / ワンダーワンド", "이미지": "wonderwand" },
+                        { "이름": "간반테인 / Gambatin / ガンバンティン", "이미지": "gambatin" },
+                        { "이름": "마운틴 클라이버 / Mountain climber / マウンテンクライマー", "이미지": "mountainclimber" },
+                        { "이름": "커스드블러드 / Cursed blood / カースドブラッド", "이미지": "cursedblood" },
+                        { "이름": "히트 에테르 / Heat ether / ヒートエーテル", "이미지": "heatether" },
+                        { "이름": "적송장 / Akamatsu cane / 赤松杖", "이미지": "akamatsucane" },
+                        { "이름": "터프 해프 / Tough half / タフハーフ", "이미지": "toughhalf" },
+                        { "이름": "헬브레인 / Herblain / ヘルブレーン", "이미지": "herblain" },
+                        { "이름": "커듀시어스 / Caduceus / カドゥケウス", "이미지": "caduceus" },
+                        { "이름": "구름 번개 / Thundercloud wand / 雷雲杖", "이미지": "thundercloudwand" },
+                        { "이름": "포스트 브루니시 / Post Bursini / ポストブルシニ", "이미지": "postbursini" },
+                        { "이름": "하드 캔들 스틱 / Hard candle sticks / ハードキャンドルスティック", "이미지": "hardcandlesticks" },
+                        { "이름": "아켄 스틱 / Akkenstick / アケンスティック", "이미지": "akkenstick" },
+                        { "이름": "라크리스 워터블루 / Lachris water blue / ラクリスウォーターブルー", "이미지": "lachriswaterblue" },
+                        { "이름": "블로우 스틱 / Blow stick / ブロースティック", "이미지": "blowstick", "등급": "800UMU"  },
+                        { "이름": "하모니어스 / Harmony earth / ハーモニアース", "이미지": "harmonyearth", "등급": "800UMU"  },
+                        { "이름": "시스 스태프 / Sheath staff / シーススタッフ", "이미지": "sheathstaff", "등급": "900UMU"  },
+                        { "이름": "불타오르는 눈 / Burning eyes / 燃えさかる目", "이미지": "burningeyes", "등급": "900UMU"  },
+                        { "이름": "드라고닉스태프 / Dragonic Staff / ドラゴニックスタッフ", "이미지": "dragonicstaff", "등급": "1000UMU"  },
+                        { "이름": "전기충격봉 / Electric Shock Rod / 電気ショック棒", "이미지": "electricshockrod", "등급": "1000UMU"  }
+                  ],
+        "이빨": [
+                        { "이름": "바이퍼 티쓰 / Viper tooth / バイパートゥース", "이미지": "vipertooth" },
+                        { "이름": "트랩바이트 / Trap byte / トラップバイト", "이미지": "trapbyte" },
+                        { "이름": "실버린의 이빨 / Silvaline fangs / シルバリンの牙", "이미지": "silvalinefangs" },
+                        { "이름": "크루얼스퀴저 / Kural Squeezer / クルアルスクィーザー", "이미지": "kuralsqueezer" },
+                        { "이름": "스캐빈저 / Scavenger / スカベンジャー", "이미지": "scavenger" },
+                        { "이름": "민트 왁스드 / Mint wax fang / ミントワックスファング", "이미지": "mintwaxfang" },
+                        { "이름": "불타는 늑대인간 / Flame Fang / 炎狼牙", "이미지": "flamefang" },
+                        { "이름": "크리스티의 틀니 / Christira's Fang / クリスティラの牙", "이미지": "christirasfang" },
+                        { "이름": "스머그 특제품 / Smug Special / スマグスペシャル", "이미지": "smugspecial" },
+                        { "이름": "하트 디태처 / Heart Detail Tech / ハートディテックチャー", "이미지": "heartdetailtech" },
+                        { "이름": "회색 곰 이빨 / Grizzly Fang / グリズリーの牙", "이미지": "grizzlyfang" },
+                        { "이름": "도메인스팅크 / Domain stink / ドメインスティンク", "이미지": "domainstink" },
+                        { "이름": "다이노 터스크 / Dino task / ダイノタスク", "이미지": "dinotask" },
+                        { "이름": "포식자의 상흔 / Predator scars / 捕食者の傷痕", "이미지": "predatorscars", "등급": "800UMU"  },
+                        { "이름": "그을린 어금니 / Whisked fangs / 灼かれた牙", "이미지": "whiskedfangs", "등급": "800UMU"  },
+                        { "이름": "검붉은 독니 / Rust-colored tusks / 錆色の毒牙", "이미지": "rustcoloredtusks", "등급": "900UMU" },
+                        { "이름": "아랑의 엄니 / Alain Fang / アランの牙", "이미지": "alainfang", "등급": "900UMU"  },
+                        { "이름": "크림슨 래비드 / Crimson Virus / クリムゾンヴァイラス", "이미지": "crimsonvirus", "등급": "1000UMU"  },
+                        { "이름": "월하월아 / Moonlight Fang / 月下月牙", "이미지": "moonlightfang", "등급": "1000UMU" }
+                  ],
+        "메이스": [
+                        { "이름": "브램블 샙 / Bramble Sap / ブランブルサップ", "이미지": "bramblesap" },
+                        { "이름": "레디컬 필그림 / Radical Pilgrim / ラディカルピルグリム", "이미지": "radicalpilgrim" },
+                        { "이름": "하노브 툴 / Hanob tool / ハノブツール", "이미지": "hanobtool" },
+                        { "이름": "오션스해저드 / Oceans Hazard / オーシャンズハザード", "이미지": "oceanshazard" },
+                        { "이름": "라이트 리퍼 / Light leaper / ライトリーパ", "이미지": "lightleaper" },
+                        { "이름": "트리플 스타 / Triple star / トリプルスター", "이미지": "triplestar" },
+                        { "이름": "라이트 세이비어 / Light Savior / ライトセイヴィア", "이미지": "lightsavior" },
+                        { "이름": "로프트피스 / Loft piece / ロフトピース", "이미지": "loftpiece" },
+                        { "이름": "슈트라디바리의 비극 / The tragedy of Strada Bali / シュトラディバリの悲劇", "이미지": "stradabali" },
+                        { "이름": "육모 방망이 / Hexagon club / ヘキサゴンクラブ", "이미지": "hexagonclub" },
+                        { "이름": "게일 몽둥이 / Gayles Gagel / ゲイルズガジェル", "이미지": "gaylesgagel" },
+                        { "이름": "아우구스타 결사대 / Augusta Scud / アウグスタスカッド", "이미지": "augustascud" },
+                        { "이름": "토칭 쏜 / Toching sone / トーチングソーン", "이미지": "tochingsone" },
+                        { "이름": "오다인 해머 / Odaine Hammer / オダインハンマー", "이미지": "odainehammer" },
+                        { "이름": "빌 크래커 / Bill cracker / ビルクラッカー", "이미지": "billcracker" },
+                        { "이름": "매스 블로어 / Mass blower / マスブロワー", "이미지": "massblower" },
+                        { "이름": "물건 / Thing / シングシング", "이미지": "thing" },
+                        { "이름": "펑키 컨디션 / Funky condition / ファンキーコンディション", "이미지": "funkycondition" },
+                        { "이름": "어터 모드 / Perfect mode / パーフェクトモード", "이미지": "perfectmode" },
+                        { "이름": "언데드 싸이코패쓰 / Undead psychopath / アンデッドサイコパス", "이미지": "undeadpsychopath" },
+                        { "이름": "그래파이트 바브 / Graphite barb / グラファイトバーブ", "이미지": "graphitebarb" },
+                        { "이름": "바위 샘 / Rock fountain / ロックファウンテン", "이미지": "rockfountain" },
+                        { "이름": "미션 크레더블 / Mission Credits / ミッションクレディブル", "이미지": "missioncredits" },
+                        { "이름": "머제스틱 스태프 / Majestic staff / マジェスティックスタッフ", "이미지": "majesticstaff" },
+                        { "이름": "컨테서 / Contessa / コンテッサ", "이미지": "contessa" },
+                        { "이름": "임페리얼 버추오소 / Imperial Villetuoso / インペリアルヴィルトゥオーソ", "이미지": "imperialvilletuoso" },
+                        { "이름": "로열 스컬럽춰 / Royal sculpture / ロイヤルスカルプチャー", "이미지": "royalsculpture" },
+                        { "이름": "계시의 전곤 / Revelation message / 啓示の伝言", "이미지": "revelationmessage", "등급": "800UMU" },
+                        { "이름": "득죄 / Sin / 得罪", "이미지": "sin", "등급": "800UMU" },
+                        { "이름": "신의 철퇴 / Battle God / 闘神の鉄槌", "이미지": "battlegod", "등급": "900UMU" },
+                        { "이름": "홀 오브 페이쓰 / Hall of face / ホールオブフェイス", "이미지": "hallofface", "등급": "900UMU" },
+                        { "이름": "평온한 잠 / Peaceful Sleep / 平穏な眠り", "이미지": "peacefulsleep", "등급": "1000UMU" },
+                        { "이름": "정화의 자비 / Merciful Purification / 慈悲深き浄化", "이미지": "mercifulpurification", "등급": "1000UMU" }
+                  ],
+        "날개": [
+                        { "이름": "정령 날개 / Elemental wing / 精霊の翼", "이미지": "elementalwing" },
+                        { "이름": "에어웨이더 / Air Wader / エア・ウェイダー", "이미지": "airwader" },
+                        { "이름": "세피로스의 잎사귀 / Sephiroth leaf / セフィロスの葉", "이미지": "sephirothleaf" },
+                        { "이름": "헤븐스 엔보이 / Heaven's Envy / へヴンスエンボィ", "이미지": "heavensenvy" },
+                        { "이름": "케룹의 광채 / The glow of kelp / ケルップの光彩", "이미지": "glowofkelp" },
+                        { "이름": "소닉 프레임 / Sonic frame / ソニックフレーム", "이미지": "sonicframe" },
+                        { "이름": "안개구름 / Stratus / ストラタス", "이미지": "stratus" },
+                        { "이름": "앰버 어사일럼 / Amber Asylum / アンバーアサイラム", "이미지": "amberasylum" },
+                        { "이름": "로즈메리 플루미지 / Rosemary Purmage / ローズマリープルマージュ", "이미지": "rosemarypurmage" },
+                        { "이름": "걸랙틱 트라이어드 / Galactic Triard / ギャラクティックトライアード", "이미지": "galactictriard" },
+                        { "이름": "썩은 바람 / Roton wind / ロトンウィンド", "이미지": "rotonwind" },
+                        { "이름": "피더클라이트 / Feather Cright / フェザークライト", "이미지": "feathercright" },
+                        { "이름": "세레스티얼 호크 / Celestial Hawk / セレスティアルホーク", "이미지": "celestialhawk" },
+                        { "이름": "클리어 페더 / Clear feather / クリアフェザー", "이미지": "clearfeather" },
+                        { "이름": "더 퍼니셔 / Punisher / パニッシャー", "이미지": "punisher" },
+                        { "이름": "어둠의 날개 / Dark wings / 闇の翼", "이미지": "darkwings" },
+                        { "이름": "공명의 반란군 / Rebellion wing / 反逆の翼", "이미지": "rebellionwing" },
+                        { "이름": "하이파더 블레싱 / Wing of blessing / 祝福の翼", "이미지": "wingofblessing" },
+                        { "이름": "고귀한 기상 / Noble temperament / 高貴なる気質", "이미지": "nobletemperament", "등급": "800UMU" },
+                        { "이름": "크라이시스 / Crisis / クライシス", "이미지": "crisis", "등급": "800UMU" },
+                        { "이름": "천상의 광휘 / Heavenly brilliance / 天上の輝き", "이미지": "heavenlybrilliance", "등급": "900UMU" },
+                        { "이름": "사이지차 / Fate wings / 運命の翼", "이미지": "fatewings", "등급": "900UMU" },
+                        { "이름": "사명 / Missionme / 使命", "이미지": "missionme", "등급": "1000UMU" },
+                        { "이름": "라이트퓨리 / Light Fury / ライトフューリー", "이미지": "lightfury", "등급": "1000UMU" }
+                  ],
+        "피리": [
+                        { "이름": "제레클랑 / Seeleklang / ゼーレクラン", "이미지": "seeleklang" },
+                        { "이름": "사이런트비브라 / Silent vibra / サイレントビブラ", "이미지": "silentvibra" },
+                        { "이름": "본파이프 / Bone pipe / ボーンパイプ", "이미지": "bonepipe" },
+                        { "이름": "레미니서 / Reminessa / レミネッサ", "이미지": "reminessa" },
+                        { "이름": "하이컴퍼스 / High compass / ハイ・コンパス", "이미지": "highcompass" },
+                        { "이름": "만파식적 / 庵 / 萬波息笛", "이미지": "manpashikjeok" },
+                        { "이름": "크로마틱 코드 / Chromatic code / クロマチックコード", "이미지": "chromaticcode" },
+                        { "이름": "디테일 노트 / Detail notes / ディテールノート", "이미지": "detailnotes" },
+                        { "이름": "마에스트로 초이스 / Maestro Choice / マエストロチョイス", "이미지": "maestrochoice" },
+                        { "이름": "나이트노이즈 / Night noise / ナイトノイズ", "이미지": "nightnoise" },
+                        { "이름": "리틀 크레이들 / Riddle Cradle / リドルクレイドル", "이미지": "riddlecradle" },
+                        { "이름": "오페라 튜브 / Opera tube / オペラチューブ", "이미지": "operatube" },
+                        { "이름": "미니 브라스 / Mini brass / ミニブラス", "이미지": "minibrass" },
+                        { "이름": "시크릿 튠 / Secret tune / シークレットチューン", "이미지": "secrettune" },
+                        { "이름": "호드기 / Kusanagi / 草笛", "이미지": "kusanagi" },
+                        { "이름": "자우버플뢰테 / Saubaful rete / ザウバフルレテ", "이미지": "saubafulrete" },
+                        { "이름": "댓잎붙이 / Bamboo chopsticks / 竹笛", "이미지": "bamboochopsticks" },
+                        { "이름": "라비아의 향기 / Lavia's spice / ラビアの香笛", "이미지": "laviaspice" },
+                        { "이름": "마왕 / Devil / 魔王", "이미지": "devil" },
+                        { "이름": "붉은 울음 / Red cry / 赤い泣き声", "이미지": "redcry", "등급": "800UMU" },
+                        { "이름": "진혼의 서막 / The beginning of the requiem / 鎮魂の序幕", "이미지": "requiembeginning", "등급": "800UMU" },
+                        { "이름": "굳건한 지도자 / Strong leader / 強固なる指導者", "이미지": "strongleader", "등급": "900UMU" },
+                        { "이름": "백희협장 / Childish flute / 童心のフルート", "이미지": "childishflute", "등급": "900UMU" },
+                        { "이름": "무한의 유대 / Infinite bond / 無限の絆", "이미지": "infinitebond", "등급": "900UMU" },
+                        { "이름": "군신의 지휘 / War God's Command / 軍神の指揮", "이미지": "wargodscommand", "등급": "1000UMU" },
+                        { "이름": "평화의 행진곡 / March of Peace / 平和の行進曲", "이미지": "marchofpeace", "등급": "1000UMU" }
+                  ],
+        "단검": [
+                        { "이름": "매드 호넷트 / Mad Hornet / マッドホーネット", "이미지": "madhornet" },
+                        { "이름": "스필리터 / Splitter / スプリッター", "이미지": "splitter" },
+                        { "이름": "블랙쏜 / Black thorn / ブラック・ソーン", "이미지": "blackthorn" },
+                        { "이름": "백드래프트 / Back draft / バックドラフト", "이미지": "backdraft" },
+                        { "이름": "고르곤볼 / Gorgon Ball / ゴルゴンボール", "이미지": "gorgonball" },
+                        { "이름": "서스퀘차 / Sasqueecia / サスクェチャ", "이미지": "sasqueecia" },
+                        { "이름": "루인드라이버 / Run-in driver / ルインドライバー", "이미지": "runindriver" },
+                        { "이름": "링 슬라이서 / Ring slicer / リングスライサー", "이미지": "ringslicer" },
+                        { "이름": "위험한 장난감 / Dangeroustoy / デンジャラストイ", "이미지": "dangeroustoy" },
+                        { "이름": "도라지 / Chinese sword / 桔梗刀", "이미지": "chinesesword" },
+                        { "이름": "도굴용 단도 / Stealing Dagger / 盗掘用短刀", "이미지": "stealingdagger" },
+                        { "이름": "미라지 터치 / Mirage touch / ミラージュタッチ", "이미지": "miragetouch" },
+                        { "이름": "줄행랑 / Abus Condensed / アブスコンデンス", "이미지": "abuscondensed" },
+                        { "이름": "쿠나이 / Kunai / クナイ", "이미지": "kunai" },
+                        { "이름": "글라이딩 도미노 / Gliding Domino / グライディングドミノ", "이미지": "glidingdomino" },
+                        { "이름": "이오타 페르소나 / Iota persona / イオタペルソナ", "이미지": "iotapersona" },
+                        { "이름": "동글이 / Life circle / 生命丸", "이미지": "lifecircle" },
+                        { "이름": "젤 스피어 / Gel sphere / ジェルスフィア", "이미지": "gelsphere" },
+                        { "이름": "아파치안 / Brave Ax / ブレイブアックス", "이미지": "braveax" },
+                        { "이름": "랩 프로덕트 / Lab products / ラボプロダクト", "이미지": "labproducts" },
+                        { "이름": "이칭 인솜니아 / Itin Insomnia / イチンインソムニア", "이미지": "itininsomnia" },
+                        { "이름": "해적 사냥꾼 / Pirate hunter / パイレーツハンター", "이미지": "piratehunter" },
+                        { "이름": "머더링 서클 / Murdering circle / マーダリングサークル", "이미지": "murderingcircle" },
+                        { "이름": "트루 리벤지 / True Revenge / トゥルーリベンジ", "이미지": "truerevenge" },
+                        { "이름": "찰나의 지조 / Momentum concentration / 刹那の集中", "이미지": "momentumconcentration", "등급": "800UMU" },
+                        { "이름": "화둔 / Flame / 火遁", "이미지": "flame", "등급": "800UMU" },
+                        { "이름": "나비와 벌 / Butterfly and bee / 蝶と蜂", "이미지": "butterflyandbee", "등급": "900UMU" },
+                        { "이름": "대기만성 / Big organ / 大器晩成", "이미지": "bigorgan", "등급": "900UMU" },
+                        { "이름": "영혼 강탈자 / Soul Thieft / ソウルシーフ", "이미지": "soulthieft", "등급": "1000UMU" },
+                        { "이름": "스펠 스틸레토 / Spell Stiletto / スペルスティレット", "이미지": "spellstiletto", "등급": "1000UMU" }
+                  ],
+        "발톱": [
+                        { "이름": "다이어네일 / Diamond nail / ダイヤネイル", "이미지": "diamondnail" },
+                        { "이름": "호랑이 발톱 / Tiger nail / タイガーネイル", "이미지": "tigernail" },
+                        { "이름": "용조 / Dragon claw / ドラゴンクロー", "이미지": "dragonclaw" },
+                        { "이름": "어딕션 페그 / Addiction peg / アディクションペグ", "이미지": "addictionpeg" },
+                        { "이름": "핫도그 본 / Hot dog bone / ホットドッグボーン", "이미지": "hotdogbone" },
+                        { "이름": "통파 클로 / Tong Faclaw / トンファクロー", "이미지": "tongfaclaw" },
+                        { "이름": "낙화 / Falling Blossom / 落花", "이미지": "fallingblossom", "등급": "1000UMU" },
+                  ],
+        "슬링": [
+                        { "이름": "다윗의 명성 / David's fame / ダビッドの名声", "이미지": "davidsfame" },
+                        { "이름": "행주대첩 / Heng Jeu / ヘンジュウ大捷", "이미지": "hengjeu" },
+                        { "이름": "랫스킨 / Rat skin / ラットスキン", "이미지": "ratskin" },
+                        { "이름": "파리 잡이 / Slaying / 蝿殺し", "이미지": "slaying" },
+                        { "이름": "둠캐스터 / Doom Caster / ドゥームキャスター", "이미지": "doomcaster" },
+                        { "이름": "소일 앵커 / Soil anchor / ソイルアンカー", "이미지": "soilanchor" },
+                        { "이름": "버밀리온 어비스 / Vermillion abyss / バーミリオンアビス", "이미지": "vermillionabyss" },
+                        { "이름": "검은 천 / Ebony Cross / エボニークロス", "이미지": "ebonycross" },
+                        { "이름": "레이스 슬링 / Lace sling / レーススリング", "이미지": "lacesling" },
+                        { "이름": "사이드와인더 / Side winder / サイドワインダー", "이미지": "sidewinder" },
+                        { "이름": "콜 오브 듀티 / Duty set / デューティーセット", "이미지": "dutyset" },
+                        { "이름": "겸손한 마음가짐 / Modest sling / モデストスリング", "이미지": "modestsling" },
+                        { "이름": "비바! / Viva beaver / ビヴァビーバー", "이미지": "vivabeaver" },
+                        { "이름": "골드백 피드백 / Handbag sling / ハンドバッグスリング", "이미지": "handbagsling" },
+                        { "이름": "딱총 / Cracker ball / クラッカーボール", "이미지": "crackerball" },
+                        { "이름": "유연한 녀석들 / Flexi-bler / フレキシブラー", "이미지": "flexibler" },
+                        { "이름": "가진 자의 여유 / Luxury sling / ラグジュアリースリング", "이미지": "luxurysling" },
+                        { "이름": "뱀파이어 바인딩 / Vampire binding / ヴァンパイアバインディング", "이미지": "vampirebinding" },
+                        { "이름": "댐퍼 머신 / Damper machine / ダンパーマシン", "이미지": "dampermachine" },
+                        { "이름": "난쟁이 공 / Dwarf ball / ドワーフボール", "이미지": "dwarfball" },
+                        { "이름": "페어 레이디 / Fairlady / フェアレディ", "이미지": "fairlady", "등급": "800UMU" },
+                        { "이름": "소녀의 로망 / Maiden's Romantic / 乙女の浪漫", "이미지": "maidensromantic", "등급": "800UMU" },
+                        { "이름": "홀로서기 / Standing alone / 一人立ち", "이미지": "standingalone", "등급": "900UMU" },
+                        { "이름": "플렉서블 슬링 / Flexible sling / フレキシブルスリング", "이미지": "flexiblesling", "등급": "900UMU" },
+                        { "이름": "로열 젠틀맨 / Royal Gentleman / ロイヤルジェントルマン", "이미지": "royalgentleman", "등급": "1000UMU" },
+                        { "이름": "용의 수염 / Dragon Whisker / 竜の髭", "이미지": "dragonwhisker", "등급": "1000UMU" }
+                  ],
+        "마술봉": [
+                        { "이름": "세일러 로드 / Sailor ord / セーラーロッド", "이미지": "sailorord" },
+                        { "이름": "카자얀의 막대 / Kazayan's stick / カザヤンの棒", "이미지": "kazayansstick" },
+                        { "이름": "알티비-오르가나이저 / Ultibioluganizer / アルティビオルガナイザー", "이미지": "ultibioluganizer" },
+                        { "이름": "앰플리파이어 / Amplifier / アンプリファイアー", "이미지": "amplifier" },
+                        { "이름": "샤인스윙 / Shining / シャインスィング", "이미지": "shining" },
+                        { "이름": "큐트 트라이앵글 / Cutie Triangle / キューティートライアングル", "이미지": "cutietriangle" },
+                        { "이름": "불쏘시개 / Fireberton / ファイアーバトン", "이미지": "fireberton" },
+                        { "이름": "하이 타임 / High time / ハイタイム", "이미지": "hightime" },
+                        { "이름": "블랙 코드 / Black code / ブラックコード", "이미지": "blackcode" },
+                        { "이름": "정화된 마음 / Pure heart / ピュアハート", "이미지": "pureheart" },
+                        { "이름": "버스트 로버스트 / Burst robust / バーストロバスト", "이미지": "burstrobust" },
+                        { "이름": "그루브 트레일 / Groove trail / グルーヴトレイル", "이미지": "groovetrail" },
+                        { "이름": "판타스티카 / Fanta sticker / ファンタスティッカー", "이미지": "fantasticker" },
+                        { "이름": "군악대 여단장 / Pink military band / ピンクミリタリーバンド", "이미지": "pinkmilitaryband" },
+                        { "이름": "디제이 리퀘스트 / DJ request / DJリクエスト", "이미지": "djrequest" },
+                        { "이름": "스캣 진 / Skatjin / スキャットジン", "이미지": "skatjin" },
+                        { "이름": "오러 배틀러 / Aura butler / オーラバトラー", "이미지": "aurabutler" },
+                        { "이름": "로터스 가드너 / Lotus Gardener / ロータスガーデナー", "이미지": "lotusgardener" },
+                        { "이름": "핑크 위치 / Pink fragrance / ピンクフレグランス", "이미지": "pinkfragrance" },
+                        { "이름": "타입 세븐 / Type seven / タイプセブン", "이미지": "typeseven" },
+                        { "이름": "사랑받는 존재 / Beloved being / 愛される存在", "이미지": "belovedbeing", "등급": "800UMU" },
+                        { "이름": "장미성운 / Rose nebula / 薔薇星雲", "이미지": "rosenebula", "등급": "800UMU" },
+                        { "이름": "셀프 디펜스 / Self defense / セルフディフェンス", "이미지": "selfdefense", "등급": "900UMU" },
+                        { "이름": "만인의 아이돌 / Reach Tuji End / リーチトゥジエンド", "이미지": "reachtujiend", "등급": "900UMU" },
+                        { "이름": "노블레스 오블리주 / Noblesse Oblige / ノブレス・オブリージュ", "이미지": "noblesseoblige", "등급": "1000UMU" },
+                        { "이름": "샤이닝 다이아몬드 / Shining Diamond / シャイニングダイヤモンド", "이미지": "shiningdiamond", "등급": "1000UMU" }
+                  ],
+        "채찍": [
+                        { "이름": "조련 채찍 / Training chopsticks / 調練鞭", "이미지": "trainingchopsticks" },
+                        { "이름": "익스트랙터 / Extractor / イクストラクター", "이미지": "extractor" },
+                        { "이름": "스네이크 본 / Snake bone / スネークボーン", "이미지": "snakebone" },
+                        { "이름": "로즈쏜 / Rosethorn / ローズソーン", "이미지": "rosethorn" },
+                        { "이름": "발록의 손가락 / Barlogg's finger / バルロッグの指", "이미지": "barloggsfinger" },
+                        { "이름": "인디 포디포 / Indiana 2000 / インディアナ2000", "이미지": "indiana2000" },
+                        { "이름": "샴 파이톤 / Sham python / シャムパイソン", "이미지": "shampython" },
+                        { "이름": "멜팅 비즈 / Melting beads / メルティングビーズ", "이미지": "meltingbeads" },
+                        { "이름": "스태미나 아마릴리스 / Stamina Amaryllis / スタミナアマリリス", "이미지": "staminaamaryllis" },
+                        { "이름": "체인 리액션 / Chain reaction / チェーンリアクション", "이미지": "chainreaction" },
+                        { "이름": "소울 서커 / Seoul football / ソウルサッカー", "이미지": "seoulfootball" },
+                        { "이름": "피눈물 / Bloody tier / ブラッディティア", "이미지": "bloodytier" },
+                        { "이름": "육신의 몸부림 / Physical pain / フィジカルペイン", "이미지": "physicalpain" },
+                        { "이름": "플레임 엠프레스 / Flame Empress / フレイムエンプレス", "이미지": "flameempress" },
+                        { "이름": "러스펠의 왼손 / Rossipel's left hand / ロシペルの左手", "이미지": "rossipelslefthand" },
+                        { "이름": "잠식된 암흑 / Sunken dark / 沈んだ暗黒", "이미지": "sunkendark", "등급": "800UMU" },
+                        { "이름": "지옥불 / Hell flame / 地獄炎", "이미지": "hellflame", "등급": "800UMU" },
+                        { "이름": "고통과 쾌락 / Pain and pleasure / 苦痛と快楽", "이미지": "painandpleasure", "등급": "900UMU" },
+                        { "이름": "귓가의 속삭임 / Ear whisper / 耳元のささやき", "이미지": "earwhisper", "등급": "900UMU" },
+                        { "이름": "뱀의 혀 / Snake's Tongue / 蛇の舌", "이미지": "snakestongue", "등급": "1000UMU" },
+                        { "이름": "흑야 / Black Night / 黒夜", "이미지": "blacknight", "등급": "1000UMU" }
+                  ],
+        "낫": [
+                        { "이름": "브로큰 오프너 / Broken opener / ブロークンオープナー", "이미지": "brokenopener" },
+                        { "이름": "좌수겸 / Left size / レフトサイズ", "이미지": "leftsize" },
+                        { "이름": "트리플 바인더 / Triple bind / トリプルバインド", "이미지": "triplebind" },
+                        { "이름": "역전의 명수 / Reversing master / 逆転の名手", "이미지": "reversingmaster" },
+                        { "이름": "방천화극 / Haunt / 方天戟", "이미지": "haunt" },
+                        { "이름": "모노 아이 / Cyclops / サイクロプス", "이미지": "cyclops" },
+                        { "이름": "포레스트 슬래셔 / Forestmore / フォレストモア", "이미지": "forestmore" },
+                        { "이름": "용살겸 / Dragoon size / ドラグーンサイズ", "이미지": "dragoonsize" },
+                        { "이름": "엘 로드 / Water vane / ウォーターベイン", "이미지": "watervane" },
+                        { "이름": "잔혹한 심판 / Cruel referee / 残酷な審判", "이미지": "cruelreferee" },
+                        { "이름": "어벤져 / Grudge size / グラッジサイズ", "이미지": "grudgesize" },
+                        { "이름": "물음표 / Doubt / ダウト", "이미지": "doubt" },
+                        { "이름": "독수리의 부리 / Oiso's bowl / 大鷲の鎌", "이미지": "oisosbowl" },
+                        { "이름": "카마이타치 / Good people / かまいたち", "이미지": "goodpeople" },
+                        { "이름": "자모겸 / Fake wolf / 偽りの鎌", "이미지": "fakewolf" },
+                        { "이름": "레드 제노사이더 / Blood memory / ブラッドメモリー", "이미지": "bloodmemory" },
+                        { "이름": "체인징 포지션 / Magic size / マジックサイズ", "이미지": "magicsize" },
+                        { "이름": "타이탄 사이드 / Titan size / タイタンサイズ", "이미지": "titansize" },
+                        { "이름": "데스 사이드 / Grim reaper / 死神の鎌", "이미지": "grimreaper" },
+                        { "이름": "와일드 시져스 / Wild scissor / ワイルドシザー", "이미지": "wildscissor" },
+                        { "이름": "프린세스 코로나 / Princess Corona / プリンセスコロナ", "이미지": "princesscorona" },
+                        { "이름": "데스티니 슬라이서 / Destiny / デスティニー", "이미지": "destiny" },
+                        { "이름": "부농의 상징 / Gold rice / ゴールドライス", "이미지": "goldrice" },
+                        { "이름": "풀 스윙 / Full swing / フルスイング", "이미지": "fullswing" },
+                        { "이름": "맨티스 블레이드 / Mantis size / マンティスサイズ", "이미지": "mantissize" },
+                        { "이름": "문 블레이드 / Moon cake / 月鎌", "이미지": "mooncake" },
+                        { "이름": "레버너스 / Evil Size / イーヴィルサイズ", "이미지": "evilsize" },
+                        { "이름": "어머니의 은혜 / Panagia's moth / パナギアの鎌", "이미지": "panagiasmoth" },
+                        { "이름": "장난꾸러기 님프 / Caprice size / カプリスサイズ", "이미지": "capricesize" },
+                        { "이름": "정처 없는 유랑 / Nomadic journey / 流浪の旅", "이미지": "nomadicjourney", "등급": "800UMU" },
+                        { "이름": "레퀴엠 / Requiem / レクイエム", "이미지": "requiem", "등급": "800UMU" },
+                        { "이름": "소울 이터 / Soul Eater / 魂喰らい", "이미지": "souleater", "등급": "900UMU" },
+                        { "이름": "간계 / Ingenuity / 悪巧み", "이미지": "ingenuity", "등급": "900UMU" },
+                        { "이름": "묘지기 / Grave Keeper / 墓守り", "이미지": "gravekeeper", "등급": "1000UMU" },
+                        { "이름": "더스트 워커 / Dust Walker / ダストウォーカー", "이미지": "dustwalker", "등급": "1000UMU" }
+                  ],
+        "손톱무기": [
+                        { "이름": "방한 토시 / Warmth for cold protection / 防寒用腕貫き", "이미지": "warmthforcoldprotection" },
+                        { "이름": "이난나의 탬버린 / Inanan's tambourine / イナナンのタンバリン", "이미지": "inananstambourine" },
+                        { "이름": "엘보 패드 / Elbow pad / エルボーパッド", "이미지": "elbowpad" },
+                        { "이름": "불굴의 투혼 / Indomitable fighting spirit / 不屈の闘魂", "이미지": "indomitablefightingspirit" },
+                        { "이름": "슈가 도넛 / Swooger donut / シューガードーナツ", "이미지": "swoogerdonut" },
+                        { "이름": "검은 망사 장갑 / Black knitting gloves / 黒い編み手袋", "이미지": "blackknittinggloves" },
+                        { "이름": "데들리 스페이스 / Area of ?? death / 死の領域", "이미지": "areaofdeath" },
+                        { "이름": "헌팅 마노플 / Hunting gloves / ハンティング・グローブ", "이미지": "huntinggloves" },
+                        { "이름": "챠밍 브레이슬릿 / Charming bracelet / チャーミング・ブレスレット", "이미지": "charmingbracelet" },
+                        { "이름": "일곱 번째 비늘 / Seventh ax / 七番目の鱗", "이미지": "seventhax" },
+                        { "이름": "자이언트 피어싱 / Giant Pierce / ジャイアント・ピアス", "이미지": "giantpierce" },
+                        { "이름": "바이킹의 헬멧 / Burning corner / バーイキングの角", "이미지": "burningcorner" },
+                        { "이름": "너클 시스터즈 / Knuckle sisters / ナックル・シスターズ", "이미지": "knucklesisters" },
+                        { "이름": "리볼버 뱀프레이스 / Revolver bangle / リボルバー・バンブレース", "이미지": "revolverbangle" },
+                        { "이름": "코로나의 미광 / Diamond ring / ダイヤモンドリング", "이미지": "diamondring" },
+                        { "이름": "조인트 브레이커 / Joint Breaker / ジョイントブレイカー", "이미지": "jointbreaker" },
+                        { "이름": "박제 전갈 / Red scorpion / レッドスコーピオン", "이미지": "redscorpion" },
+                        { "이름": "미스틸테인 / Misty tail / ミスティーテイル", "이미지": "mistytail" },
+                        { "이름": "섀도우 스네이크 / Shadow snake / シャドースネーク", "이미지": "shadowsnake" },
+                        { "이름": "바쥬라 / Vajra / バジュラ", "이미지": "vajra" },
+                        { "이름": "일렉트릭 캐터펄트 / Lightning discharge / ライトニング・ディスチャージ", "이미지": "lightningdischarge" },
+                        { "이름": "카타르 시스 / catharsis / カタルシス", "이미지": "catharsis" },
+                        { "이름": "헬릭스 프로비던스 / Helix Providence / ヘリックス・プロヴィデンス", "이미지": "helixprovidence" },
+                        { "이름": "니드호그의 앞발 / Needs hugg forefoot / ニーズヘッグの前足", "이미지": "needshuggforefoot" },
+                        { "이름": "팔색조 / Eight colored birds / 八色鳥", "이미지": "eightcoloredbirds" },
+                        { "이름": "측정 불가 / Unmeasurable / 測定不能", "이미지": "unmeasurable" },
+                        { "이름": "얼어붙은 검지 / Saber tiger / サーベルタイガー", "이미지": "sabertiger" },
+                        { "이름": "스켈레톤 락토마 / skeleton / スケルトン", "이미지": "skeleton" },
+                        { "이름": "삼두견의 불꽃 / Cerberus flame / ケルベロスの炎", "이미지": "cerberusflame" },
+                        { "이름": "초전박살 / First battle / 初戦撲殺", "이미지": "firstbattle", "등급": "800UMU" },
+                        { "이름": "인드라의 헌신 / Indra dedication / インドラの献身", "이미지": "indradedication", "등급": "800UMU" },
+                        { "이름": "오버 엣지 / Over edge / オーバーエッジ", "이미지": "overedge", "등급": "900UMU" },
+                        { "이름": "천번지복 / Heavenly light / 回天の光", "이미지": "heavenlylight", "등급": "900UMU" },
+                        { "이름": "지옥견 / Hellhound / 地獄の犬", "이미지": "hellhound", "등급": "1000UMU" },
+                        { "이름": "지각변동 / Crust Shift / 地殻変動", "이미지": "crustshift", "등급": "1000UMU" }
+                  ],
+        "책": [
+                    { "이름": "레네의 일기장 / Rene's Diary / レネの日記", "이미지": "renesdiary" },
+                    { "이름": "아동용 대백과사전 / Children's Encyclopedia / 子供大百科事典", "이미지": "childrensecyclopedia" },
+                    { "이름": "비트 사용 설명서 / Bit operation manual / ビット操作マニュアル", "이미지": "bitmanual" },
+                        { "이름": "광자역학 입문서 / Introduction to photochemistry / 光化学入門書", "이미지": "photochemistryintro" },
+                        { "이름": "빌판의 연판장 / Biriffin's Letters / ビリファーンの連判状", "이미지": "biriffinsletters" },
+                        { "이름": "스머그 비상 연락망 / Smag Emergency Contact Network / スマグ緊急連絡網", "이미지": "smagemergency" },
+                        { "이름": "고돔 공화국 건국 국채 / Godom Republic National Government Bonds / ゴドム共和国建国国債", "이미지": "godombonds" },
+                        { "이름": "다멜 괴담 모음집 / Damel Kaidanshu / ダメル怪談集", "이미지": "damelkaidanshu" },
+                        { "이름": "몬스터 도감-인간형 / Monster picture book: Human type / モンスター図鑑：人間型", "이미지": "monsterbook_human" },
+                        { "이름": "냄비 받침대 / Hot pot / 鍋敷き", "이미지": "hotpotpad" },
+                        { "이름": "몬스터 도감-언데드 / Monster picture book: undead type / モンスター図鑑：アンデッド型", "이미지": "monsterbook_undead" },
+                        { "이름": "몬스터 도감-동물형 / Monster picture book: Animal type / モンスター図鑑：動物型", "이미지": "monsterbook_animal" },
+                        { "이름": "몬스터 도감-악마형 / Monster picture book: Devil type / モンスター図鑑：悪魔型", "이미지": "monsterbook_devil" },
+                        { "이름": "행운의 편지 / Chain mail / チェーンメール", "이미지": "chainmail" },
+                        { "이름": "대헌장 / Magna Carta / マグナ・カルタ", "이미지": "magnacarta" },
+                        { "이름": "위자보드 / Wija board / ウィジャボード", "이미지": "wijaboard" },
+                        { "이름": "비탄의 절규 / Cry of grief / 悲嘆の叫び", "이미지": "cryofgrief" },
+                        { "이름": "정체불명의 화보집 / Mysterious book / 妖しい本", "이미지": "mysteriousbook" },
+                        { "이름": "프란델 연대기 / Flandel Chronicle / フランデル年代記", "이미지": "flandelchronicle" },
+                        { "이름": "발리아트 인권 선언 / Baliart Human Rights Declaration / バリアート人権宣言書", "이미지": "baliarthr" },
+                        { "이름": "홀로그램 디스플레이 / Hologram display / ホログラムディスプレイ", "이미지": "hologramdisplay" },
+                        { "이름": "몬스터 도감-신수형 / Monster Picture Book: God Beast Type / モンスター図鑑：神獣型", "이미지": "monsterbook_godbeast" },
+                        { "이름": "타닛의 서 / Book of dick / ディックの書", "이미지": "bookofdick" },
+                        { "이름": "라볼라스 타블렛 / Laboratory tablet / ラボラス・タブレット", "이미지": "laboratorytablet" },
+                        { "이름": "요조숙녀 길들이기 / How to say how a maiden / 淑女の口説き方", "이미지": "maidenmanual" },
+                        { "이름": "왕의 진노 / The heart of the king / 王の心火", "이미지": "heartoftheking" },
+                        { "이름": "손자병법 / Law of grandchild / 孫子の兵法", "이미지": "artofwar" },
+                        { "이름": "왕립 도서관 장서 목록 / Royal Library Collection List / 王立図書館蔵書リスト", "이미지": "royallibrarylist" },
+                        { "이름": "초회 한정판 / first Limit edition / 初回限定版", "이미지": "firstedition" },
+                        { "이름": "미스테리 로어 / urban legend / 都市伝説", "이미지": "urbanlegend" },
+                        { "이름": "삼라만상의 이치 / The truth of the whole world / 森羅万象の理", "이미지": "truthofworld" },
+                        { "이름": "출석부 / Attendance list / 出席簿", "이미지": "attendancelist", "등급": "800UMU" },
+                        { "이름": "그리크교 성서 / Greek Bible / グリーク教の聖書", "이미지": "greekbible", "등급": "800UMU" },
+                        { "이름": "태초의 기록 / Ancient record / 太古の記録", "이미지": "ancientrecord", "등급": "900UMU" },
+                        { "이름": "오버 테크놀로지 / Over technology / オーバーテクノロジー", "이미지": "overtechnology", "등급": "900UMU" },
+                        { "이름": "빛의 포옹 / Embrace of Light / 光の抱擁", "이미지": "embraceoflight", "등급": "1000UMU" },
+                        { "이름": "원소의 잠언 / Elemental Axiom / 元素の箴言", "이미지": "elementalaxiom", "등급": "1000UMU" }    
+                  ]
+      },
+
+      "방어구": {
+        "목걸이": [
+                        { "이름": "주홍줄기 / Red muscle / 紅い筋", "이미지": "redmuscle" },
+                        { "이름": "여명의 눈동자 / Eye of dawn / 夜明けの瞳", "이미지": "eyeofdawn" },
+                        { "이름": "섀도우 엠블렘 / Shadow emblem / シャドウエンブレム", "이미지": "shadowemblem" },
+                        { "이름": "펜타서클 / Penta circle / ペンタサークル", "이미지": "pentacircle" },
+                        { "이름": "봉황장 / Emblem / 鳳凰章", "이미지": "emblem" },
+                        { "이름": "제노스타 / Genostar / ジェノスター", "이미지": "genostar" },
+                        { "이름": "고스트 앰블 / Ghost amble / ゴーストアンブル", "이미지": "ghostamble" },
+                        { "이름": "피엔도르간 / Pieendorgan / ピエンドルガン", "이미지": "pieendorgan" },
+                        { "이름": "데빌넥 / Devilneck / デビルネック", "이미지": "devilneck" },
+                        { "이름": "스타링크 / Star link / スターリンク", "이미지": "starlink" },
+                        { "이름": "서펜트알파 / Serpent Alpha / サーペントアルファ", "이미지": "serpentalpha" },
+                        { "이름": "마도풍 / Magic wind / マジックウィンド", "이미지": "magicwind" },
+                        { "이름": "일 스파인 / Eels Pine / イールスパイン", "이미지": "eelspine" },
+                        { "이름": "아메지스티안 / Amethystian / アメジスティアン", "이미지": "amethystian" },
+                        { "이름": "주시자의 눈 / Eye of the watchman / 見張り人の目", "이미지": "eyeofthewatchman" },
+                        { "이름": "합격 기원 / Prayer for passing / 合格祈願", "이미지": "prayerforpassing" },
+                        { "이름": "베이퍼닷지 / Mist's Hidden Wolf / 霧の隠れ蓑", "이미지": "mistshiddenwolf" },
+                        { "이름": "스트레이 스토커 / Lost tracker / 迷える追跡人", "이미지": "losttracker" },
+                        { "이름": "강철경갑 / Steel neck guard / スティールネックガード", "이미지": "steelneckguard" },
+                        { "이름": "우르크 칼라 / Urk color / ウルクカラー", "이미지": "urkcolor" },
+                        { "이름": "죽음의 성물 / Sacred tool of death / 死の聖具", "이미지": "sacredtoolofdeath", "등급": "800UMU" },
+                        { "이름": "인어의 눈물 / Mermaid Tears / 人魚の涙", "이미지": "mermaidtears", "등급": "800UMU" },
+                        { "이름": "저주받은 성신 / Cursed star / 呪われた星辰", "이미지": "cursedstar", "등급": "800UMU" },
+                        { "이름": "아르고스의 눈동자 / Argos Eye / アルゴスの瞳", "이미지": "argoseye", "등급": "800UMU" },
+                        { "이름": "인고의 열매 / Bitter fruit / 辛苦の果実", "이미지": "bitterfruit", "등급": "900UMU" },
+                        { "이름": "뇌음 / Thunder / 雷音", "이미지": "thunder", "등급": "900UMU" },
+                        { "이름": "실버메달 / Silver Medal / シルバーメダル", "이미지": "silvermedal", "등급": "1000UMU" },
+                        { "이름": "게이징 쥬얼 / Gauging Jewel / ゲージングジュエル", "이미지": "gaugingjewel", "등급": "1000UMU" },
+                        { "이름": "빛나는 광휘 / Radiant Glory / 輝かしい光輝", "이미지": "radiantglory", "등급": "1000UMU" },
+                        { "이름": "★국왕의 매듭 / King's knot / 国王の結び", "이미지": "kingsknot", "등급": "BFU" },
+                        { "이름": "★팔면경 / Octahedral mirror / 八面鏡", "이미지": "octahedralmirror", "등급": "BFU" }
+                  ],
+        "관": [
+                        { "이름": "아메지스티 / Amethyst / アメジスティ", "이미지": "amethyst" },
+                        { "이름": "장원급제관 / Crown of the First Pass / 首席合格の冠", "이미지": "firstpasscrown" },
+                        { "이름": "하늘의 영광 / Heavenly glory / 天の栄光", "이미지": "heavenlyglory" },
+                        { "이름": "지상의 권세 / Terrestrial power / 地上の権勢", "이미지": "terrestrialpower" },
+                        { "이름": "플로렌스 머리띠 / Flower maiden's circlet / 花の乙女のサークレット", "이미지": "flowercirclet" },
+                        { "이름": "플라스틱 플라워스 / Plastic flowers / プラスチックフラワーズ", "이미지": "plasticflowers" },
+                        { "이름": "슬리핑 집시 / Sleeping roma / スリーピングロマ", "이미지": "sleepingroma" },
+                        { "이름": "정령의 왕 / Crown of the Elemental King / 精霊王の冠", "이미지": "elementalkingcrown" },
+                        { "이름": "소서러 크라운 / Sorcerer Crown / ソーサラークラウン", "이미지": "sorcerercrown" },
+                        { "이름": "이리스의 관 / Iris crown / イリスの冠", "이미지": "iriscrown", "등급": "800UMU" },
+                        { "이름": "판단하는 자 / Judge / 判断する者", "이미지": "judge", "등급": "800UMU" },
+                        { "이름": "예지의 관 / Prediction trap / 予知の棺", "이미지": "predictiontrap", "등급": "900UMU" },
+                        { "이름": "선인의 지혜 / Wisdom of the Ancients / 先人の知恵", "이미지": "wisdomoftheancients", "등급": "1000UMU" },
+                        { "이름": "오라클 써클릿 / Oracle Circlet / オラクルサークレット", "이미지": "oraclecirclet", "등급": "1000UMU" },
+                        { "이름": "★여술사의 두건 / Gynecologist Koif / 女術師のコイフ", "이미지": "gynecoif", "등급": "BFU" }
+                  ],
+        "투구": [
+                        { "이름": "필승머리띠 / Winning Bandana / 必勝バンダナ", "이미지": "winningbandana" },
+                        { "이름": "크림슨 햇 / Crimson hat / クリムソンハット", "이미지": "crimsonhat" },
+                        { "이름": "스컬스턱 / Skull stack / スカルスタック", "이미지": "skullstack" },
+                        { "이름": "알파캡 / Alpha cap / アルファキャップ", "이미지": "alphacap" },
+                        { "이름": "덴스포그 / Dense Fog / デンスフォーグ", "이미지": "densefog" },
+                        { "이름": "다크 바이저 / Dark visor / ダークバイザー", "이미지": "darkvisor" },
+                        { "이름": "루시드 헬름 / Lucid Helm / ルシッドヘルム", "이미지": "lucidhelm" },
+                        { "이름": "방랑의 선율 / Melody of wandering / 放浪のメロディー", "이미지": "melodyofwandering" },
+                        { "이름": "작은 해님 / Little sunshine / リトルサンシャイン", "이미지": "littlesunshine" },
+                        { "이름": "마스터 캡 / Master cap / マスターキャップ", "이미지": "mastercap" },
+                        { "이름": "파브 모자 / Ferb hat / ファーブの帽子", "이미지": "ferbhat" },
+                        { "이름": "흑철성 / Black iron cap / 黒鉄帽", "이미지": "blackironcap" },
+                        { "이름": "재주꾼 모자 / Talent hat / タレントハット", "이미지": "talenthat" },
+                        { "이름": "어스 앰프 / Earth amplifier / アースアンプ", "이미지": "earthamplifier" },
+                        { "이름": "하이 햇 / Hi hat / ハイハット", "이미지": "hihat" },
+                        { "이름": "글림 조커의 모자 / Grim joker hat / グリムジョーカーの帽子", "이미지": "grimjokerhat" },
+                        { "이름": "최정상 위 / On the top / 頂きの上", "이미지": "onthetop", "등급": "800UMU" },
+                        { "이름": "사자탈 / Lion mask / 獅子仮面", "이미지": "lionmask", "등급": "800UMU" },
+                        { "이름": "수어지교 / Water fish / 水魚の交わり", "이미지": "waterfish", "등급": "900UMU" },
+                        { "이름": "비호의 맹약 / Covenant of Protection / 庇護の盟約", "이미지": "covenantofprotection", "등급": "1000UMU" },
+                        { "이름": "프론트 라인 / Frontline / フロントライン", "이미지": "frontline", "등급": "1000UMU" },
+                        { "이름": "★카디널 터프트 / Cardinal tuft / カーディナルタフト", "이미지": "cardinaltuft", "등급": "BFU" }
+                  ],
+        "귀걸이": [
+                        { "이름": "파인팁 / Fine tip / ファインティップ", "이미지": "finetip" },
+                        { "이름": "네크로캐비티 / Necro cavity / ネクロキャビティ", "이미지": "necrocavity" },
+                        { "이름": "앵크 이어링 / Anklet / アンクイヤリング", "이미지": "ankletring" },
+                        { "이름": "에스트 벨 / Est Bell / エスト・ベル", "이미지": "estbell" },
+                        { "이름": "여신의 깊이 / Goddess depth / 女神の深さ", "이미지": "goddessdepth" },
+                        { "이름": "파인위스퍼 / Fine whisper / ファインウィスパー", "이미지": "finewhisper" },
+                        { "이름": "레버링힌지 / Reving hinge / レブリングヒンジ", "이미지": "revinghinge" },
+                        { "이름": "아이보리 더스트 / Ivory strike / アイボリーダスト", "이미지": "ivorystrike" },
+                        { "이름": "트리니티 러스터 / Trinity raster / トリニティーラスター", "이미지": "trinityraster" },
+                        { "이름": "프리덤 엠프레스 / Freedom Empress / フリーダムエンプレス", "이미지": "freedomempress" },
+                        { "이름": "여신의 숨결 / Breath of goddess / 女神の息吹", "이미지": "breathofgoddess" },
+                        { "이름": "스타차일드 / Star child / スターチャイルド", "이미지": "starchild" },
+                        { "이름": "제비꽃 귀걸이 / Sumi layering / スミレイヤリング", "이미지": "sumilayering", "등급": "800UMU" },
+                        { "이름": "협곡의 돌풍 / Gorge gust / 峡谷の突風", "이미지": "gorgegust", "등급": "800UMU" },
+                        { "이름": "계시의 목소리 / Revelation voice / 啓示の声", "이미지": "revelationvoice", "등급": "800UMU" },
+                        { "이름": "뮤사의 노래 / Muther song / ミューサーの歌", "이미지": "musasong", "등급": "800UMU" },
+                        { "이름": "오드아이 / Oddeye / オッドアイ", "이미지": "oddeye", "등급": "900UMU" },
+                        { "이름": "평안과 안녕 / Peace and Rest / ピースアンドレスト", "이미지": "peaceandrest", "등급": "900UMU" },
+                        { "이름": "삭풍의 외침 / Cry of the North Wind / 北風の叫び", "이미지": "cryofnorthwind", "등급": "1000UMU" },
+                        { "이름": "선샤인 / Sunshine / サンシャイン", "이미지": "sunshine", "등급": "1000UMU" },
+                        { "이름": "문샤인 / Moonshine / ムーンシャイン", "이미지": "moonshine", "등급": "1000UMU" },
+                        { "이름": "스타 웨이브 / Starwave / スターウェーブ", "이미지": "starwave", "등급": "1000UMU" },
+                        { "이름": "★복사의 특이점 / Replication singularity / 複製特異点", "이미지": "replicationsingularity", "등급": "BFU" },
+                        { "이름": "★여신의 내음 / Goddess fragrance / 女神の香り", "이미지": "goddessfragrance", "등급": "BFU" }
+                  ],
+        "망토": [
+                        { "이름": "히어로스 프루프 / Hero's proof / ヒーローズプルーフ", "이미지": "herosproof" },
+                        { "이름": "화이트 오러 / White aura / ホワイトオーラ", "이미지": "whiteaura" },
+                        { "이름": "요정의 망토 / Fairy cloak / 妖精のマント", "이미지": "fairycloak" },
+                        { "이름": "테이프쉐이더 / Tape shader / テープシェーダー", "이미지": "tapeshader" },
+                        { "이름": "홀리스트롤 / Horist roll / ホーリストロール", "이미지": "horistroll" },
+                        { "이름": "쿨가이 / Cool guy / クールガイ", "이미지": "coolguy" },
+                        { "이름": "블랙 오러 / Black aura / ブラックオーラ", "이미지": "blackaura" },
+                        { "이름": "보텍스 텍스처 / Vortex texture / ボルテックステクスチャー", "이미지": "vortextexture" },
+                        { "이름": "모던 매지션 / Modern magician / モダンマジシャン", "이미지": "modernmagician" },
+                        { "이름": "침혈 / Accupuncture point / アキュパンクチャーポイント", "이미지": "accupuncturepoint" },
+                        { "이름": "배교자 밀트림 / Apostate Mill Trim / 背教者ミルトリム", "이미지": "apostatemilltrim", "등급": "800UMU" },
+                        { "이름": "고요한 아우성 / Quiet cry / 静かな叫び", "이미지": "quietcry", "등급": "800UMU" },
+                        { "이름": "라베르나의 베일 / Laverna Veil / ラベルナのベール", "이미지": "lavernaveil", "등급": "800UMU" },
+                        { "이름": "대마법사의 탁언 / Prophet of Great Magician / 大魔法師の託言", "이미지": "prophetofgreatmagician", "등급": "800UMU" },
+                        { "이름": "유종의 미 / Endless beauty / 有終の美", "이미지": "endlessbeauty", "등급": "900UMU" },
+                        { "이름": "바람막이의 가호 / Windbreaker / ウィンドブレーカー", "이미지": "windbreaker", "등급": "900UMU" },
+                        { "이름": "홍염의 잔상 / Crimson Flame Afterimage / 紅炎の残像", "이미지": "crimsonflameafterimage", "등급": "1000UMU" },
+                        { "이름": "트리키 로브 / Tricky Robe / トリッキーローブ", "이미지": "trickyrobe", "등급": "1000UMU" },
+                        { "이름": "물아일체 / Unity of Matter and Self / 物我一如", "이미지": "unityofmatterandself", "등급": "1000UMU" },
+                        { "이름": "★카타스트로피 / Disaster / ディザスター", "이미지": "disaster", "등급": "BFU" },
+                        { "이름": "★컨템퍼러리 아티잰 / Contemporary artisan / コンテンポラリーアルチザン", "이미지": "contemporaryartisan", "등급": "BFU" },
+                  ],
+        "벨트": [
+                        { "이름": "와이드로프 / Wide rope / ワイドロープ", "이미지": "widerope" },
+                        { "이름": "베이너빌 / Binaville / ベイナビル", "이미지": "binaville" },
+                        { "이름": "포춘 휠 / Fortune feel / フォーチュンフィール", "이미지": "fortunefeel" },
+                        { "이름": "스파이럴버클 / Spiral buckle / スパイラルバックル", "이미지": "spiralbuckle" },
+                        { "이름": "안티차저 / Anti-charger / アンチチャージャ", "이미지": "anticharger" },
+                        { "이름": "체인스퀘어 / Chain square / チェーンスクェア", "이미지": "chainsquare" },
+                        { "이름": "지크의 저주 / Sig's curse / シグの呪い", "이미지": "sigscurse" },
+                        { "이름": "가더벨트 / Girder belt / ガーダーベルト", "이미지": "girderbelt" },
+                        { "이름": "프로즌코일 / Frozen coil / フローズンコイル", "이미지": "frozencoil" },
+                        { "이름": "천룡요대 / Tenryu Belt / 天竜のベルト", "이미지": "tenryubelt" },
+                        { "이름": "보릿고개 / Spring period / 春の端境期", "이미지": "springperiod" },
+                        { "이름": "인스턴트 에이드 / Instant aid / インスタントエイド", "이미지": "instantaid" },
+                        { "이름": "트윈컬 / Twin curl / ツインカール", "이미지": "twincurl" },
+                        { "이름": "인퀴지터 / Inquisitor / インクイジター", "이미지": "inquisitor" },
+                        { "이름": "기사용 벨트 / Knight's belt / 騎士用ベルト", "이미지": "knightsbelt" },
+                        { "이름": "여신의 유혹 / Goddess' temptation / 女神の誘惑", "이미지": "goddesstemptation", "등급": "800UMU" },
+                        { "이름": "아마조네스의 허리띠 / Amazones Belt / アマゾネスのベルト", "이미지": "amazonesbelt", "등급": "800UMU" },
+                        { "이름": "불공대천 / Unfaithful / 不共戴天", "이미지": "unfaithful", "등급": "800UMU" },
+                        { "이름": "완대 / Loose belt / 緩帯", "이미지": "loosebelt", "등급": "800UMU" },
+                        { "이름": "금란지교 / Exchange of money / 金欄の交わり", "이미지": "exchangeofmoney", "등급": "900UMU" },
+                        { "이름": "아이루스의 집착 / Isles attachment / アイルスの執着", "이미지": "islesattachment", "등급": "900UMU" },
+                        { "이름": "리더의 권위 / Leader's Authority / リーダーの権威", "이미지": "leadersauthority", "등급": "1000UMU" },
+                        { "이름": "소울 링크 / Soul Link / ソウルリンク", "이미지": "soullink", "등급": "1000UMU" },
+                        { "이름": "액막이 / Charm of Protection / 魔除け", "이미지": "charmofprotection", "등급": "1000UMU" },
+                        { "이름": "★헥터의 원한 / Hector's pride / ヘクターの誇り", "이미지": "hectorspride", "등급": "BFU" },
+                        { "이름": "★블루밍 코일 / Blooming coil / ブルーミングコイル", "이미지": "bloomingcoil", "등급": "BFU" }
+                  ],
+        "장갑": [
+                        { "이름": "폼가드 / Foam guard / フォームガード", "이미지": "foamguard" },
+                        { "이름": "핸즈 오브 에드버서리 / Hands of the Advent / ハンズオブアドバサリー", "이미지": "handsoftheadvent" },
+                        { "이름": "아버지의 손 / Dad's hand / お父さんの手", "이미지": "dadshand" },
+                        { "이름": "매스그립 / Massrip / マスグリップ", "이미지": "massrip" },
+                        { "이름": "럭클러치 / Rack clutch / ラッククラッチ", "이미지": "rackclutch" },
+                        { "이름": "버터플라이 스팅 / Butterfly sting / バタフライスティング", "이미지": "butterflysting" },
+                        { "이름": "포텐셜 드래거 / Potential dragger / ポテンシャルドラッガー", "이미지": "potentialdragger" },
+                        { "이름": "쉴트라임 / Shield pair / シールドペア", "이미지": "shieldpair" },
+                        { "이름": "베놈 포드 / Venom pod / ベノムポッド", "이미지": "venompod" },
+                        { "이름": "슈트룸빈트 / Sturm's wind / シュトゥルムの風", "이미지": "sturmswind" },
+                        { "이름": "스펙트랄 택 / Spectral tack / スペクトラルタック", "이미지": "spectraltack" },
+                        { "이름": "아이언 피스트 / Iron fist / アイアンフィスト", "이미지": "ironfist" },
+                        { "이름": "그리드시커 / Grid seeker / グリッドシーカー", "이미지": "gridseeker" },
+                        { "이름": "버닝 파이터 / Burning fighter / バーニングファイター", "이미지": "burningfighter" },
+                        { "이름": "저울질하는 여인 / Woman on scale / 秤の女", "이미지": "womanonscale", "등급": "800UMU" },
+                        { "이름": "순환의 연속 / Continuous circulation / 循環の連続", "이미지": "continuouscirculation", "등급": "800UMU" },
+                        { "이름": "연륜 있는 재단사 / Age cleaver / 年輪の裁断師", "이미지": "agecleaver", "등급": "800UMU" },
+                        { "이름": "갓 핸드 / God hand / ゴッドハン", "이미지": "godhand", "등급": "800UMU" },
+                        { "이름": "권능의 손 / Hand of authority / 権能の手", "이미지": "handofauthority", "등급": "800UMU" },
+                        { "이름": "전투 곡예사 / Battle acrobatics / バトルアクロバット", "이미지": "battleacrobatics", "등급": "800UMU" },
+                        { "이름": "영광의 손 / Glory gloves / 栄光の手袋", "이미지": "glorygloves", "등급": "900UMU" },
+                        { "이름": "기사의 맹세 / Knight Oath / 騎士の誓い", "이미지": "knightoath", "등급": "900UMU" },
+                        { "이름": "철혈의 의지 / Iron-blood will / 鉄血の意志", "이미지": "ironbloodwill", "등급": "900UMU" },
+                        { "이름": "무기 파괴자 / Weapon Breaker / ウェポンブレイカー", "이미지": "weaponbreaker", "등급": "1000UMU" },
+                        { "이름": "초신성 / Supernova / 超新星", "이미지": "supernova", "등급": "1000UMU" },
+                        { "이름": "무패 행진 / Undefeated March / 無敗行進", "이미지": "undefeatedmarch", "등급": "1000UMU" },
+                        { "이름": "★주먹대장 / Han's fist / 漢の拳", "이미지": "hansfist", "등급": "BFU" },
+                        { "이름": "★버터 핑커 / Butterfinger / バターフィンガー", "이미지": "butterfinger", "등급": "BFU" }
+                  ],
+        "장갑 대용": [
+                        { "이름": "스크류 플라이어 / Screw fly / スクリューフライアー", "이미지": "screwfly" },
+                        { "이름": "도요새 / Longville / ロングビル", "이미지": "longville" }
+                  ],
+        "팔찌": [
+                        { "이름": "스턴체크 / Stan Check / スタンチェック", "이미지": "stancheck" },
+                        { "이름": "클로스 체이서 / Cross chaser / クロスチェイサー", "이미지": "crosschaser" },
+                        { "이름": "브리프마커 / Brief marker / ブリーフマーカー", "이미지": "briefmarker" },
+                        { "이름": "정크케이스 / Junk case / ジャンクケース", "이미지": "junkcase" },
+                        { "이름": "장미 덩굴 / A bowl of salmon / 薔薇の蔓", "이미지": "abowlofsalmon" },
+                        { "이름": "와치가드 / Watch guard / ワッチガード", "이미지": "watchguard" },
+                        { "이름": "유니콘 벤딩 / Unicorn bangles / ユニコーンの腕輪", "이미지": "unicornbangles" },
+                        { "이름": "백팔번뇌 / One hundred eighty trouble / 百八煩悩", "이미지": "onehundredeightytrouble" },
+                        { "이름": "건강 팔찌 / Health bracelet / ヘルスブレスレット", "이미지": "healthbracelet" },
+                        { "이름": "캐너발리스터 / Kanni Barista / カンニバリスター", "이미지": "kannibarista" },
+                        { "이름": "타나토스 얀 / Tanatos Yarn / タナトスヤーン", "이미지": "tanatosyarn" },
+                        { "이름": "마그네틱 암릿 / Magnet armlet / マグネットアームレット", "이미지": "magnetarmlet" },
+                        { "이름": "이중 화음 / Double Harmony / ダブルハーモニー", "이미지": "doubleharmony", "등급": "1000UMU" }
+                  ],
+        "공용갑옷": [
+                        { "이름": "평민의 꿈 / Commoner's dream / 平民の夢", "이미지": "commonersdream" },
+                        { "이름": "트롤 플리스 / Troll fleece / トロールフリース", "이미지": "trollfleece" },
+                        { "이름": "다이아몬드레더 / Diamond leather / ダイヤモンドレザー", "이미지": "diamondleather" },
+                        { "이름": "드레이크허스크 / Drake husk / ドレイクハスク", "이미지": "drakehusk" },
+                        { "이름": "터틀 쉘 / Turtle shell / タートルシェル", "이미지": "turtleshell" },
+                        { "이름": "세이프케이지 / Safe cage / セーフケージ", "이미지": "safecage" },
+                        { "이름": "트랄의 유산 / Heritage of Toral / トラルの遺産", "이미지": "heritageoftoral" },
+                        { "이름": "레이먼트 오브 자드 / Rayment observations / レイメントオブザード", "이미지": "raymentobservations" },
+                        { "이름": "썬더 플레이트 / Thunder plate / サンダープレート", "이미지": "thunderplate" },
+                        { "이름": "브리스크 클래머 / Brisk Kramer / ブリスククラマー", "이미지": "briskkramer" },
+                        { "이름": "클루붐의 가죽 / Curboom skin / クルブームの皮", "이미지": "curboomskin" },
+                        { "이름": "오피셜 리그 / Official league / オフィシャルリーグ", "이미지": "officialleague" },
+                        { "이름": "주스트 플레이트 / Just plate / ジュストプレート", "이미지": "justplate" },
+                        { "이름": "문라이트 스토커 / Moonlight Stalker / ムーンライトストーカー", "이미지": "moonlightstalker" },
+                        { "이름": "엔젤 로브 / Angel robe / エンジェルローブ", "이미지": "angelrobe" },
+                        { "이름": "드레이크 플룸 / Drake Plume / ドレイクプルーム", "이미지": "drakeplume" },
+                        { "이름": "시린 인트루더 / Saline Intruder / サリーンイントルーダー", "이미지": "salineintruder" },
+                        { "이름": "전고의 전사들 / Army band soldiers / 軍楽隊の兵士", "이미지": "armybandsoldiers" },
+                        { "이름": "화이트 나인 / White nine / ホワイトナイン", "이미지": "whitenine" },
+                        { "이름": "구리의 상흔 / Capres car / カパースカー", "이미지": "caprescar" },
+                        { "이름": "바이탈시커 / Vital Seeker / バイタルシーカー", "이미지": "vitalseeker" },
+                        { "이름": "프릭 코트 / Flick coat / フリックコート", "이미지": "flickcoat" },
+                        { "이름": "리플렉션 코팅 / Reflection coating / リフレクションコーティング", "이미지": "reflectioncoating" },
+                        { "이름": "호버 필라 / Hover pillar / ホバーピラー", "이미지": "hoverpillar" },
+                        { "이름": "만트라 옴 / Ohmmant / オームマント", "이미지": "ohmmant" },
+                        { "이름": "그리드 바크 / Gred bark / グリードバーク", "이미지": "gredbark" },
+                        { "이름": "야수의 탐욕 / Beast berry / ビーストベリー", "이미지": "beastberry" },
+                        { "이름": "블루벨벳 / Blue velvet / ブルーベルベット", "이미지": "bluevelvet" },
+                        { "이름": "말다의 잎사귀 / Maruda leaf / マルダの葉", "이미지": "marudaleaf" },
+                        { "이름": "미스트랄 룬 / Mistral Rune / ミストラルルーン", "이미지": "mistralrune" },
+                        { "이름": "아즈라엘의 전갑 / Azrael's Full Armor / アズラエルのフルアーマー", "이미지": "azraelsfullarmor" },
+                        { "이름": "타고난 지도자 / Talented leader / タレンテッドリーダー", "이미지": "talentedleader" },
+                        { "이름": "난쟁이의 산물 / Dwarf products / ドワーフの産物", "이미지": "dwarfproducts", "등급": "800UMU" },
+                        { "이름": "거룩한 은총 / Holy grace / 神聖なる恩寵", "이미지": "holygrace", "등급": "800UMU" },
+                        { "이름": "지하계의 광염 / Underground light flame / 地下界の光炎", "이미지": "undergroundlightflame", "등급": "800UMU" },
+                        { "이름": "따스한 털가죽 / Warm fur / 暖かい毛皮", "이미지": "warmfur", "등급": "800UMU" },
+                        { "이름": "거신의 철갑 / Giant Armor / 巨神の甲冑", "이미지": "giantarmor", "등급": "900UMU" },
+                        { "이름": "전장의 성흔 / Holy War Relic / 聖戦の遺物", "이미지": "holywarrelic", "등급": "900UMU" },
+                        { "이름": "천공 요새 / Sky Fortress / 天空の要塞", "이미지": "skyfortress", "등급": "1000UMU" },
+                        { "이름": "노장의 의장 / Elder's Garment / ご老体の衣", "이미지": "eldersgarment", "등급": "1000UMU" },
+                        { "이름": "광전사의 원념 / Berserker's Grudge / 狂戦士の怨念", "이미지": "berserkersgrudge", "등급": "1000UMU" },
+                        { "이름": "오가닉 로브 / Organic Robe / オーガニックローブ", "이미지": "organicrobe", "등급": "1000UMU" },
+                        { "이름": "★타이탄의 어깨 / Titan's shoulder / タイタンの肩", "이미지": "titansshoulder", "등급": "BFU" },
+                        { "이름": "★빛바랜 갑옷 / Faded armor / 色褪せ鎧", "이미지": "fadedarmor", "등급": "BFU" },
+                        { "이름": "★아삭스의 광기 / Six Madness / シックスの狂気", "이미지": "sixmadness", "등급": "BFU" }
+                  ],
+        "전용갑옷": [
+                        { "이름": "버디 트러스트 / Buddy trust / バディトラスト", "이미지": "buddytrust" },
+                        { "이름": "위스덤 커버 / Wisdom cover / ウィズダムカバー", "이미지": "wisdomcover" },
+                        { "이름": "세라프의 가호 / Seraph Bless / セラフの御加護", "이미지": "seraphbless" },
+                        { "이름": "비호 / Flying tiger / 飛虎", "이미지": "flyingtiger" },
+                        { "이름": "트렁크베어 / Trunk Bear / トランクベアー", "이미지": "trunkbear" },
+                        { "이름": "에립트 스타일 / Elliptic style / エリプト・スタイル", "이미지": "ellipticstyle" },
+                        { "이름": "프리티미어 / Prettyia / プリティミア", "이미지": "prettyia" },
+                        { "이름": "화이트스노우 / White snow / ホワイトスノウ", "이미지": "whitesnow" },
+                        { "이름": "퓨리프드레이프 / Pewted drape / ピューリプドレイプ", "이미지": "pewteddrape" },
+                        { "이름": "사울리안의 가죽 / Saulian skin / サウリアンの皮", "이미지": "saulianskin" },
+                        { "이름": "북극성의 저주 / Curse of the North Star / 北極星の呪い", "이미지": "curseofthenorthstar" },
+                        { "이름": "남극성의 분노 / Antarctic star anger / 南極星の怒り", "이미지": "antarcticstaranger" },
+                        { "이름": "엘리트 라이브러리언 / Level 1 Librarian Uniform / 1級司書制服", "이미지": "level1librarianuniform" },
+                        { "이름": "칼스 패딩 / Callus pad / カルスのパッド", "이미지": "calluspad" },
+                        { "이름": "볼프람의 털갈이 / Wolfram fur / ヴォルフラムファー", "이미지": "wolframfur" },
+                        { "이름": "자 쉰 / Ja 갋 scene / ジャ・シーン", "이미지": "jascene" },
+                        { "이름": "낡은 도복 / Old monk clothes / 古い道士服", "이미지": "oldmonkclothes" },
+                        { "이름": "마법기사 에립션 / Magic knight Elipshan / 魔法騎士エリプシャン", "이미지": "magicknightelipshan" },
+                        { "이름": "비슬 퀼트 / Bishl quilt / ビスルキルト", "이미지": "bishlquilt" },
+                        { "이름": "비치 피치 / Beach peach / ビーチピーチ", "이미지": "beachpeach" },
+                        { "이름": "레일리의 흔적 / Rayleigh's Replica / レイリーのレプリカ", "이미지": "rayleighsreplica" },
+                        { "이름": "오월의 여왕 / Queen of may / 五月の女王", "이미지": "queenofmay" },
+                        { "이름": "다마텔의 갈비뼈 / Damatelle's skeleton / ダマテルの肋骨", "이미지": "damatellesskeleton" },
+                        { "이름": "디모나의 노예 / Timona Mail / ティモナメイル", "이미지": "timonamail" },
+                        { "이름": "디모나의 긍지 / Timona's pride / ティモナのプライド", "이미지": "timonaspride" },
+                        { "이름": "사교 무대 데뷔 / Squid clothes / 燕尾服", "이미지": "squidclothes" },
+                        { "이름": "강철 바람 / Iron torrent / 鉄の奔流", "이미지": "irontorrent", "등급": "900UMU" },
+                        { "이름": "여제의 이력 / Empress's stall / 女帝のストール", "이미지": "empresssstall", "등급": "900UMU" },
+                        { "이름": "스펠 컷 / Spell cut / スペルカット", "이미지": "spellcut", "등급": "900UMU" },
+                        { "이름": "자연의 가호 / Nature guard / ネイチャーガード", "이미지": "natureguard", "등급": "900UMU" },
+                        { "이름": "신의 변덕 / Play of gods / 神々の遊び", "이미지": "playofgods", "등급": "900UMU" },
+                        { "이름": "침묵과 암흑 / Silencer in the dark / 暗闇に黙りし者", "이미지": "silencerinthedark", "등급": "900UMU" },
+                        { "이름": "숙녀의 마음가짐 / Maiden's manner / 淑女の作法", "이미지": "maidensmanner", "등급": "900UMU" },
+                        { "이름": "불길한 외투 / Ominous coat / 不吉なコート", "이미지": "ominouscoat", "등급": "900UMU" },
+                        { "이름": "유성의 의지 / Meteor Will / 流星の意志", "이미지": "meteorwill", "등급": "900UMU" },
+                        { "이름": "고고한 자태 / Custom order / カスタムオーダー", "이미지": "customorder", "등급": "900UMU" }
+                  ],
+        "신발": [
+                        { "이름": "스피릿 오브 커머셜 / Spirit of commercial / スピリットオブコマーシャル", "이미지": "spiritofcommercial" },
+                        { "이름": "대도무문 / Daichi Ammon / 大道無門", "이미지": "daichiammon" },
+                        { "이름": "천리화 / Senri shoes / 千里靴", "이미지": "senrishoes" },
+                        { "이름": "트랩리빌러 / Trap Libira / トラップリビーラ", "이미지": "traplibira" },
+                        { "이름": "트립라이더 / Trip rider / トリップライダー", "이미지": "triprider" },
+                        { "이름": "더 스트라이더 / The Strider / ザ・ストライダー", "이미지": "thestrider" },
+                        { "이름": "니케의 신발 / Nike's shoes / ニケの靴", "이미지": "nikesshoes" },
+                        { "이름": "대모 / Godmother / ゴッドマザー", "이미지": "godmother" },
+                        { "이름": "앤디의 계약 / Angie's contract / アンジーの契約", "이미지": "angiescontract" },
+                        { "이름": "레더 힐 / Leather heel / レザーヒール", "이미지": "leatherheel" },
+                        { "이름": "바서드라케 / Bassa Drach / バッサドラッヘ", "이미지": "bassadrach" },
+                        { "이름": "스나이핑 에이펙스 / Sniping Apex / スナイピングアペックス", "이미지": "snipingapex" },
+                        { "이름": "로젠메모랜덤 / Rosen Memory / ローゼンメモリー", "이미지": "rosenmemory" },
+                        { "이름": "스태츄 부츠 / Statue boots / スタチューブーツ", "이미지": "statueboots" },
+                        { "이름": "황금 구두 / Golden boots / 黄金ブーツ", "이미지": "goldenboots" },
+                        { "이름": "목신의 뜀박질 / The runaway of the faun / 牧神の駆け足", "이미지": "therunawayofthefaun", "등급": "800UMU" },
+                        { "이름": "분홍 신 / Pink shoes / ピンクシューズ", "이미지": "pinkshoes", "등급": "800UMU" },
+                        { "이름": "거인의 발바닥 / The soles of the great god / 巨人の足裏", "이미지": "thesolesofthegreatgod", "등급": "800UMU" },
+                        { "이름": "라이더 슈즈 / Rider shoes / ライダーシューズ", "이미지": "ridershoes", "등급": "800UMU" },
+                        { "이름": "대지의 격노 / Earth rage / 大地の怒り", "이미지": "earthrage", "등급": "900UMU" },
+                        { "이름": "아련한 기억 / Lost memory / ロストメモリー", "이미지": "lostmemory", "등급": "900UMU" },
+                        { "이름": "제트 인젝터 / Jet injector / ジェットインジェクター", "이미지": "jetinjector", "등급": "900UMU" },
+                        { "이름": "페이스 메이커 / Pace Maker / ペースメーカー", "이미지": "pacemaker", "등급": "1000UMU" },
+                        { "이름": "마나워커 / Mana Walker / マナウォーカー", "이미지": "manawalker", "등급": "1000UMU" },
+                        { "이름": "천상의 발꿈치 / Heavenly Heel / 天上のかかと", "이미지": "heavenlyheel", "등급": "1000UMU" },
+                        { "이름": "★다오링의 손길 / Protecting Daoring / ダオリングの護持", "이미지": "protectingdaoring", "등급": "BFU" },
+                        { "이름": "★페논의 항아리 / Phenon's trap / フェノンの壺", "이미지": "phenonstrap", "등급": "BFU" }
+                  ],
+        "방패": [
+                        { "이름": "아이언파이 / Iron pie / アイアンパイ", "이미지": "ironpie" },
+                        { "이름": "드라케넴팽거 / Drakhememfanger / ドラケネムファンガー", "이미지": "drakhememfanger" },
+                        { "이름": "브룬 문장 / Brun's coat of arms / ブルンの紋章", "이미지": "brunscoatofarms" },
+                        { "이름": "디바인 포트리스 / Damage Fortress / デバインフォートレス", "이미지": "damagefortress" },
+                        { "이름": "핀플레이트 / Fin plate / フィンプレート", "이미지": "finplate" },
+                        { "이름": "포스필드 / Force field / フォースフィールド", "이미지": "forcefield" },
+                        { "이름": "소드 블로커 / Sword blocker / ソードブロッカー", "이미지": "swordblocker" },
+                        { "이름": "밸런스드 소서 / Balanced saucer / バランスドソーサー", "이미지": "balancedsaucer" },
+                        { "이름": "블레이드 카트리지 / Blade cartridge / ブレードカートリッジ", "이미지": "bladecartridge" },
+                        { "이름": "바람개비 / Wind guard / ウィンドガード", "이미지": "windguard" },
+                        { "이름": "데자 뷰 실드 / Deja-ve Shield / デジャビュシールド", "이미지": "dejaveshield" },
+                        { "이름": "썬 인 더 스퀘어 / Sunny Square / サニースクエア", "이미지": "sunnysquare" },
+                        { "이름": "실버 옴팔로스 / Silver Omparos / シルバーオムパロス", "이미지": "silveromparos" },
+                        { "이름": "프레셔스 로우드 / Precious road / プレシャスロード", "이미지": "preciousroad" },
+                        { "이름": "망자의 지혜 / Shield of knowledge / 知識の盾", "이미지": "shieldofknowledge" },
+                        { "이름": "플래시 스파이크 / Flash spike / フラッシュスパイク", "이미지": "flashspike" },
+                        { "이름": "익센트릭 팬 / Eccentric fan / エキセントリックファン", "이미지": "eccentricfan" },
+                        { "이름": "엠 피 디 에프 / M.P.D.F. / M.P.D.F.", "이미지": "mpdf" },
+                        { "이름": "가디우스 워든 / Gadius Warden / ガディウスウォーデン", "이미지": "gadiuswarden" },
+                        { "이름": "스위트 라즈베리 / Sweet raspberry / スィートラズベリー", "이미지": "sweetraspberry" },
+                        { "이름": "발굴칼 / Excavation knife / 発掘ナイフ", "이미지": "excavationknife" },
+                        { "이름": "이모탈 킬러 / Undead Slayer / 不死殺し", "이미지": "undeadslayer", "등급": "900UMU" }
+                  ],
+        "화살": [
+                        { "이름": "알바트로스 / Albatross / アルバトロス", "이미지": "albatross" },
+                        { "이름": "고인돌깃털 / Dolmen's wings / ドルメンの羽", "이미지": "dolmenswings" },
+                        { "이름": "호크아이 / Hawkeye / ホークアイ", "이미지": "hawkeye" },
+                        { "이름": "스테빌라이저 / stabilizer / スタビライザー", "이미지": "stabilizer" },
+                        { "이름": "스트롱미사일 / Strong missile / ストロングミサイル", "이미지": "strongmissile" },
+                        { "이름": "버닝릿 / Burning lit / バーニングリット", "이미지": "burninglit" },
+                        { "이름": "베이퍼볼트 / Vapor bolt / ベイパーボルト", "이미지": "vaporbolt" },
+                        { "이름": "프로스트바이트 / Frostbite / フロストバイト", "이미지": "frostbite" },
+                        { "이름": "에센셜 리볼트 / Essential Rebolt / エッセンシャルリボルト", "이미지": "essentialrebolt" },
+                        { "이름": "툼스톤 플레이크 / Tombstone flakes / トゥームストーンフレーク", "이미지": "tombstoneflakes" },
+                        { "이름": "명적 / 밚 / 鳴鏑", "이미지": "myeongjeong" },
+                        { "이름": "헤비 듀티 / Heavy duty / ヘビィデューティー", "이미지": "heavyduty" },
+                        { "이름": "편전 / Katagiri / 片箭", "이미지": "katagiri" },
+                        { "이름": "화전 / fire arrow / 火箭", "이미지": "firearrow" },
+                        { "이름": "톡신헤일러 / Poison Healer / ポイズンヒーラー", "이미지": "poisonhealer" },
+                        { "이름": "레이어 블루 / Layer blue / レイヤーブルー", "이미지": "layerblue" },
+                        { "이름": "알케미스트 애로우 / Alchemist Arrow / アルケミストアロー", "이미지": "alchemistarrow", "등급": "1000UMU" }
+                  ],
+        "탄환": [
+                        { "이름": "수류탄 / Grenade / 手榴弾", "이미지": "grenade" },
+                        { "이름": "액화 질소병 / Liquefied nitrogen bottle / 液化窒素瓶", "이미지": "liquefiednitrogenbottle" },
+                        { "이름": "최루탄 / Tearball / 催涙弾", "이미지": "tearball" },
+                        { "이름": "짱돌 / Stone / 石ころ", "이미지": "stone" },
+                        { "이름": "에킨쉘 / Equin shell / エクインシェル", "이미지": "equinshell" },
+                        { "이름": "네이팜탄 / Napalm bullet / ナパーム弾", "이미지": "napalmbullet" },
+                        { "이름": "칠리 페퍼 / Chili pepper / チリペッパー", "이미지": "chilipepper" },
+                        { "이름": "블루 토닉 / Blue tonic / ブルートニック", "이미지": "bluetonic" },
+                        { "이름": "핫 스프 / Hot soup / ホットスープ", "이미지": "hotsoup" },
+                        { "이름": "차돌 / quartz / 石英", "이미지": "quartz" },
+                        { "이름": "철갑탄 / Shell shell / 鉄甲弾", "이미지": "shellshell" },
+                        { "이름": "셈텍스 / Samtex / サムテックス", "이미지": "samtex" }
+                  ],
+        "반지": [
+                        { "이름": "웜브리즈 / Worm Breeze / ワームブリーズ", "이미지": "wormbreeze" },
+                        { "이름": "할로우써클스 / Hollow Circles / ホロウサークルズ", "이미지": "hollowcircles" },
+                        { "이름": "에델곤드 / Edelgond / エーデルゴンド", "이미지": "edelgond" },
+                        { "이름": "드와프바인더 / Dwarf binder / ドワーフバインダー", "이미지": "dwarfbinder" },
+                        { "이름": "브룬의 국새 / Brun's seal / ブルンの印章", "이미지": "brunsseal" },
+                        { "이름": "타트크라프트의 약혼 반지 / Tartcraft engagement ring / タートクラフトの婚約指輪", "이미지": "tartcraftengagementring" },
+                        { "이름": "님라스의 수염 / Nemuras's coffin / ニムラスの髭", "이미지": "nemurasscoffin" },
+                        { "이름": "하드 피스트 / Hard fist / ハードフィスト", "이미지": "hardfist" },
+                        { "이름": "파지티브 실 / Positive seal / ポジティブシール", "이미지": "positiveseal" },
+                        { "이름": "태극지환 / Taiko ring / 太極リング", "이미지": "taikoring" },
+                        { "이름": "테슬라 루프 / Tesla loop / テスラループ", "이미지": "teslaloop" },
+                        { "이름": "솔리테르 서펜트 / Solitaire service / ソリティアサーパント", "이미지": "solitaireservice" },
+                        { "이름": "클래머 뫼비우스 / Cremermebius / クレマーメビウス", "이미지": "cremermebius" },
+                        { "이름": "스팅 럴러바이 / Stingra Labye / スティングララバイ", "이미지": "stingralabye" },
+                        { "이름": "흑룡가죽반지 / Black dragon's ring / 黒竜の指輪", "이미지": "blackdragonsring" },
+                        { "이름": "핀 오브 샤크 / Shark fin / シャークフィン", "이미지": "sharkfin" },
+                        { "이름": "우로보로스 / Ouroboros / ウロボロス", "이미지": "ouroboros", "등급": "800UMU" },
+                        { "이름": "개기일식 / Total solar eclipse / 皆既日食", "이미지": "totalsolareclipse", "등급": "800UMU" },
+                        { "이름": "세이렌의 꼬리 / Siren's tail / セイレーンの尻尾", "이미지": "sirenstail", "등급": "800UMU" },
+                        { "이름": "인피니티 링 \"홍옥\" / Infinity ring \"Red ball\" / インフィニティリング \"紅玉\"", "이미지": "infinityringredball" }
+                  ]
+      }
+    };
+
+    const imageMap = {
+      "무기": {
+                  "한손검": {
+                        "orcrist": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/오르크리스트.png",
+                        "anduril": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/안두릴.png",
+                        "excalibur": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/엑스칼리버.png",
+                        "flare_crescent": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/플레어크레센트.png",
+                        "fall_wind": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/추풍낙엽.png",
+                        "plum_sword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/일지매도.png",
+                        "old_garma": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/올드개머.png",
+                        "python_razor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/파이톤레이저.png",
+                        "blood_whisker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/블러드위스커.png",
+                        "wide_hand": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/와이드핸드.png",
+                        "gofa_hope": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/고퍼의희망.png",
+                        "chop_axe": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/장작도끼.png",
+                        "map_tail": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/맙푸스테일.png",
+                        "lava_storm": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/용암풍.png",
+                        "chilled_prominence": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/칠드프로미넌스.png",
+                        "skill_revolution": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/스킬레볼루션.png",
+                        "construct_rome": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/컨스트럭트롬.png",
+                        "legend_sword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/전설의검.png",
+                        "solar_eclipse": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/솔라이클립스.png",
+                        "blues_car": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/블루스카.png",
+                        "holy_slasher": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/홀리비스트슬래셔.png",
+                        "storm_overload": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/스톰오버로드.png",
+                        "cry_sword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/한탄의외침.png",
+                        "obsidian_sword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/옵시디안소드.png",
+                        "spark_saber": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/스파크세이버.png",
+                        "wizard_flicker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/위자드프리커.png",
+                        "cats_eye": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/캣츠아이.png",
+                        "port_bridgehead": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/포트브리지헤드.png",
+                        "fatal_beauty": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/페이틀뷰티.png",
+                        "irregular_arian": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/이레귤러아리안.png",
+                        "induction_kit": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/인덕션키트.png",
+                        "debone_knife": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/발골도.png",
+                        "genawam17": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/게나왐17.png",
+                        "ancient_castle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/앤션트캐슬.png",
+                        "absolute_lucky": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/절대행운영역.png",
+                        "caravan_outfit": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/캐러번아웃핏.png",
+                        "grain_harvester": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/그레인하베스터.png",
+                        "mining_axe": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/채굴도끼.png",
+                        "ally": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/맹우.png",
+                        "west_blade": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/서풍의칼날.png",
+                        "curved_sword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/만곡도.png",
+                        "slainir": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/마검슬레이니르.png",
+                        "eye_dimension": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/차원의눈.png",
+                        "eye_storm": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/One%20Handed%20Sword/폭풍의눈.png"
+                  },
+                  "양손검": {
+                        "paddygrid": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/페디그리드.png",
+                        "dragonslayer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/드래곤슬레이어.png",
+                        "saubamolder": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/자우버모르더.png",
+                        "steinhander": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/슈타인헨더.png",
+                        "bigsage": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/빅세이지.png",
+                        "geisterstock": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/가이스터스톡.png",
+                        "goldenclever": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/골든클리버.png",
+                        "cosweal": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/코스웨일.png",
+                        "purplesword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/자단목검.png",
+                        "realhybrid": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/리얼하이브리드.png",
+                        "dragondragonsword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/지룡의용틀임.png",
+                        "dragontwister": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/드래곤트위스터.png",
+                        "goolesword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/구울검.png",
+                        "highlandersword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/하이랜더의검.png",
+                        "gutsglory": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/거츠글로리.png",
+                        "slaughterblade": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/도살검.png",
+                        "kushantalipa": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/크샨타리파.png",
+                        "steeljustice": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/강철의정의.png",
+                        "masamune": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/마사무네.png",
+                        "dimensionslayer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/디멘젼슬래셔.png",
+                        "frenzyax": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/프렌지액스.png",
+                        "newmoon": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/신월.png",
+                        "mirsbattle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/미르의전부.png",
+                        "platinumax": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/플라티넘액스.png",
+                        "refereessoul": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/심판자의혼백.png",
+                        "firststring": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/초현.png",
+                        "makaioffire": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/마의업화.png",
+                        "helgrim": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/드래곤브레스.png",
+                        "handofthewindgod": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/바람신의손길.png",
+                        "seabreezedance": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Two%20handed%20Sword/해풍의군무.png"
+                  },
+                  "창": {
+                        "holyhail": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/성창.png",
+                        "serverfile": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/시버파일.png",
+                        "wintercrow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/윈터크로우.png",
+                        "redspacer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/레드스페이더.png",
+                        "paulapin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/폴라핀.png",
+                        "hosekiller": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/호스킬러.png",
+                        "tidalpost": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/타이달포스트.png",
+                        "doublefang": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/더블팽.png",
+                        "bigeyewatchman": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/빅아이의파수꾼.png",
+                        "bluedragonsamurai": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/청룡언월도.png",
+                        "notoriousdecay": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/노터리어스-디케이.png",
+                        "boaclan": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/보어클랜.png",
+                        "aimspot": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/에임스팟.png",
+                        "doublespear": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/쌍창.png",
+                        "williewillie": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/윌리윌리.png",
+                        "flyingbuttress": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/플라잉버트리스.png",
+                        "sageofthesage": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/현자의창.png",
+                        "threehit": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/쓰리바스.png",
+                        "mishicsquare": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/전설의마방진.png",
+                        "saegusasaegusa": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/포졸용삼지창.png",
+                        "mermantan": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/머먼텅.png",
+                        "champalsamo": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/장팔사모.png",
+                        "demonwhisperin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/데몬위스퍼링.png",
+                        "dualcaspid": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/듀얼커스피드.png",
+                        "stoutferlow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/스타우트펠로우.png",
+                        "meditationpole": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/메디테이션폴.png",
+                        "elianhighhold": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/엘리안하이헬드.png",
+                        "deathsize": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/사신의낫.png",
+                        "waterfalloftakinami": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/워터폴.png",
+                        "chunlan": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/춘란.png",
+                        "unleashingstaff": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/반골장.png",
+                        "naginata": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/나기나타.png",
+                        "fragilenip": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/프레자일닙.png",
+                        "solidpoint": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/견고한끝.png",
+                        "onehundredfifty": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/백절불회.png",
+                        "rottingblackthorns": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/사극의마창.png",
+                        "haltea": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/하르테아.png",
+                        "flyingdragonsclaw": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/비룡의발톱.png",
+                        "crimsontsunami": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Spear/진홍해일.png"
+                  },
+                  "활": {
+                        "sharpbender": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/샤프벤더.png",
+                        "rangersgear": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/레인저스기어.png",
+                        "stonebow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/스톤보우.png",
+                        "falcotalon": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/팔코탤론.png",
+                        "gorespout": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/고어스파우트.png",
+                        "sevenpair": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/세븐페어.png",
+                        "watermelon": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/워터멜론.png",
+                        "slenderbow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/가녀린시위.png",
+                        "absolutezero": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/앱솔루트제로.png",
+                        "highfidelity": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/하이피델리티.png",
+                        "caribbeanazur": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/캐러비언애저.png",
+                        "haransbow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/화랑의활.png",
+                        "sixthreadburstingbow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/식스스트링핫샷.png",
+                        "suzubow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/싸우전드벨스.png",
+                        "xband": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/엑스밴드.png",
+                        "bowofpower": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/힘의활.png",
+                        "harpneedle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/하프니들.png",
+                        "devilmachinegun": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/데빌머신건.png",
+                        "bowofknowledge": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/지식의활.png",
+                        "cornerbow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/각궁.png",
+                        "blazedevice": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/블레이즈디바이스.png",
+                        "striker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/스트라이커.png",
+                        "singleeye": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/독안.png",
+                        "wailingbow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/천궁.png",
+                        "fireelption": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/파이어이럽션.png",
+                        "executiondew": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/사형선고자.png",
+                        "assaulter": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Bow/강습자.png"
+                  },
+                  "지팡이": {
+                        "roomcane": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/룸스틱.png",
+                        "wonderwand": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/완다완드.png",
+                        "gambatin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/간반테인.png",
+                        "mountainclimber": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/마운틴클라이버.png",
+                        "cursedblood": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/커스드블러드.png",
+                        "heatether": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/히트에테르.png",
+                        "akamatsucane": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/적송장.png",
+                        "toughhalf": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/터프해프.png",
+                        "herblain": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/헬브레인.png",
+                        "caduceus": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/커듀시어스.png",
+                        "thundercloudwand": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/구름번개.png",
+                        "postbursini": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/포스트브루니시.png",
+                        "hardcandlesticks": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/하드캔들스틱.png",
+                        "akkenstick": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/아켄스틱.png",
+                        "lachriswaterblue": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/라크리스워터블루.png",
+                        "blowstick": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/블로우스틱.png",
+                        "harmonyearth": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/하모니어스.png",
+                        "sheathstaff": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/시스스태프.png",
+                        "burningeyes": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/불타오르는눈.png",
+                        "dragonicstaff": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/드라고닉스태프.png",
+                        "electricshockrod": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wizard%20Rod/전기충격봉.png"
+                  },
+                  "이빨": {
+                        "vipertooth": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/바이퍼티쓰.png",
+                        "trapbyte": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/트랩바이트.png",
+                        "silvalinefangs": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/실버린의이빨.png",
+                        "kuralsqueezer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/크루얼스퀴저.png",
+                        "scavenger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/스캐빈저.png",
+                        "mintwaxfang": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/민트왁스드.png",
+                        "flamefang": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/불타는늑대인간.png",
+                        "christirasfang": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/크리스티의틀니.png",
+                        "smugspecial": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/스머그특제품.png",
+                        "heartdetailtech": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/하트디태처.png",
+                        "grizzlyfang": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/회색곰이빨.png",
+                        "domainstink": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/도메인스팅크.png",
+                        "dinotask": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/다이노터스크.png",
+                        "predatorscars": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/포식자의상흔.png",
+                        "whiskedfangs": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/그을린어금니.png",
+                        "rustcoloredtusks": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/검붉은독니.png",
+                        "alainfang": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/아랑의엄니.png",
+                        "crimsonvirus": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/크림슨래비드.png",
+                        "moonlightfang": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Tooth/월하월아.png"
+                  },
+                  "메이스": {
+                        "bramblesap": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/브램블샙.png",
+                        "radicalpilgrim": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/레디컬필그림.png",
+                        "hanobtool": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/하노브툴.png",
+                        "oceanshazard": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/오션스해저드.png",
+                        "lightleaper": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/라이트리퍼.png",
+                        "triplestar": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/트리플스타.png",
+                        "lightsavior": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/라이트세이비어.png",
+                        "loftpiece": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/로프트피스.png",
+                        "stradabali": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/슈트라디바리의비극.png",
+                        "hexagonclub": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/육모방망이.png",
+                        "gaylesgagel": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/게일몽둥이.png",
+                        "augustascud": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/아우구스타결사대.png",
+                        "tochingsone": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/토칭쏜.png",
+                        "odainehammer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/오다인해머.png",
+                        "billcracker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/빌크래커.png",
+                        "massblower": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/매스블로어.png",
+                        "thing": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/물건.png",
+                        "funkycondition": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/펑키컨디션.png",
+                        "perfectmode": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/어터모드.png",
+                        "undeadpsychopath": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/언데드싸이코패쓰.png",
+                        "graphitebarb": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/그래파이트바브.png",
+                        "rockfountain": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/바위샘.png",
+                        "missioncredits": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/미션크레더블.png",
+                        "majesticstaff": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/머제스틱스태프.png",
+                        "contessa": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/컨테서.png",
+                        "imperialvilletuoso": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/임페리얼버추오소.png",
+                        "royalsculpture": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/로열스컬럽춰.png",
+                        "revelationmessage": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/계시의전곤.png",
+                        "sin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/득죄.png",
+                        "battlegod": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/신의철퇴.png",
+                        "hallofface": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/홀오브페이쓰.png",
+                        "peacefulsleep": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/평온한잠.png",
+                        "mercifulpurification": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Mace/정화의자비.png"
+                  },
+                  "날개": {
+                        "elementalwing": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/정령날개.png",
+                        "airwader": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/에어웨이더.png",
+                        "sephirothleaf": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/세피로스의잎사귀.png",
+                        "heavensenvy": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/헤븐스엔보이.png",
+                        "glowofkelp": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/케룹의광채.png",
+                        "sonicframe": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/소닉프레임.png",
+                        "stratus": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/안개구름.png",
+                        "amberasylum": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/앰버어사일럼.png",
+                        "rosemarypurmage": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/로즈메리플루미지.png",
+                        "galactictriard": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/걸랙틱트라이어드.png",
+                        "rotonwind": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/썩은바람.png",
+                        "feathercright": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/피더클라이트.png",
+                        "celestialhawk": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/세레스티얼호크.png",
+                        "clearfeather": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/클리어페더.png",
+                        "punisher": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/더퍼니셔.png",
+                        "darkwings": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/어둠의날개.png",
+                        "rebellionwing": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/공명의반란군.png",
+                        "wingofblessing": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/하이파더블레싱.png",
+                        "nobletemperament": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/고귀한기상.png",
+                        "crisis": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/크라이시스.png",
+                        "heavenlybrilliance": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/천상의광휘.png",
+                        "fatewings": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/사이지차.png",
+                        "missionme": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/사명.png",
+                        "lightfury": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Wing/라이트퓨리.png"
+                  },
+                  "피리": {
+                        "seeleklang": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/제레클랑.png",
+                        "silentvibra": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/사이런트비브라.png",
+                        "bonepipe": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/본파이프.png",
+                        "reminessa": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/레미니서.png",
+                        "highcompass": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/하이컴퍼스.png",
+                        "manpashikjeok": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/만파식적.png",
+                        "chromaticcode": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/크로마틱코드.png",
+                        "detailnotes": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/디테일노트.png",
+                        "maestrochoice": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/마에스트로초이스.png",
+                        "nightnoise": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/나이트노이즈.png",
+                        "riddlecradle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/리틀크레이들.png",
+                        "operatube": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/오페라튜브.png",
+                        "minibrass": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/미니브라스.png",
+                        "secrettune": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/시크릿튠.png",
+                        "kusanagi": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/호드기.png",
+                        "saubafulrete": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/자우버플뢰테.png",
+                        "bamboochopsticks": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/댓잎붙이.png",
+                        "laviaspice": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/라비아의향기.png",
+                        "devil": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/마왕.png",
+                        "redcry": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/붉은울음.png",
+                        "requiembeginning": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/진혼의서막.png",
+                        "strongleader": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/굳건한지도자.png",
+                        "childishflute": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/백희협장.png",
+                        "infinitebond": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/무한의유대.png",
+                        "wargodscommand": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/군신의지휘.png",
+                        "marchofpeace": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Flute/평화의행진곡.png"
+                  },
+                  "단검": {
+                        "madhornet": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/매드호넷트.png",
+                        "splitter": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/스필리터.png",
+                        "blackthorn": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/블랙쏜.png",
+                        "backdraft": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/백드래프트.png",
+                        "gorgonball": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/고르곤볼.png",
+                        "sasqueecia": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/서스퀘차.png",
+                        "runindriver": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/루인드라이버.png",
+                        "ringslicer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/링슬라이서.png",
+                        "dangeroustoy": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/위험한장난감.png",
+                        "chinesesword": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/도라지.png",
+                        "stealingdagger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/도굴용단도.png",
+                        "miragetouch": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/미라지터치.png",
+                        "abuscondensed": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/줄행랑.png",
+                        "kunai": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/쿠나이.png",
+                        "glidingdomino": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/글라이딩도미노.png",
+                        "iotapersona": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/이오타페르소나.png",
+                        "lifecircle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/동글이.png",
+                        "gelsphere": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/젤스피어.png",
+                        "braveax": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/아파치안.png",
+                        "labproducts": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/랩프로덕트.png",
+                        "itininsomnia": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/이칭인솜니아.png",
+                        "piratehunter": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/해적사냥꾼.png",
+                        "murderingcircle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/머더링서클.png",
+                        "truerevenge": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/트루리벤지.png",
+                        "momentumconcentration": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/찰나의지조.png",
+                        "flame": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/화둔.png",
+                        "butterflyandbee": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/나비와벌.png",
+                        "bigorgan": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/대기만성.png",
+                        "soulthieft": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/영혼강탈자.png",
+                        "spellstiletto": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Dagger/스펠스틸레토.png"
+                  },
+                  "발톱": {
+                        "diamondnail": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Crow/다이어네일.png",
+                        "tigernail": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Crow/호랑이발톱.png",
+                        "dragonclaw": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Crow/용조.png",
+                        "addictionpeg": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Crow/어딕션페그.png",
+                        "hotdogbone": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Crow/핫도그본.png",
+                        "tongfaclaw": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Crow/통파클로.png",
+                        "fallingblossom": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Crow/낙화.png"
+                  },
+                  "슬링": {
+                        "davidsfame": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/다윗의명성.png",
+                        "hengjeu": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/행주대첩.png",
+                        "ratskin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/랫스킨.png",
+                        "slaying": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/파리잡이.png",
+                        "doomcaster": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/둠캐스터.png",
+                        "soilanchor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/소일앵커.png",
+                        "vermillionabyss": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/버밀리온어비스.png",
+                        "ebonycross": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/검은천.png",
+                        "lacesling": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/레이스슬링.png",
+                        "sidewinder": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/사이드와인더.png",
+                        "dutyset": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/콜오브듀티.png",
+                        "modestsling": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/겸손한마음가짐.png",
+                        "vivabeaver": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/비바!.png",
+                        "handbagsling": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/골드백피드백.png",
+                        "crackerball": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/딱총.png",
+                        "flexibler": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/유연한녀석들.png",
+                        "luxurysling": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/가진자의여유.png",
+                        "vampirebinding": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/뱀파이어바인딩.png",
+                        "dampermachine": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/댐퍼머신.png",
+                        "dwarfball": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/난쟁이공.png",
+                        "fairlady": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/페어레이디.png",
+                        "maidensromantic": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/소녀의로망.png",
+                        "standingalone": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/홀로서기.png",
+                        "flexiblesling": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/플렉서블슬링.png",
+                        "royalgentleman": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/로열젠틀맨.png",
+                        "dragonwhisker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Sling/용의수염.png"
+                  },
+                  "마술봉": {
+                        "sailorord": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/세일러로드.png",
+                        "kazayansstick": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/카자얀의막대.png",
+                        "ultibioluganizer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/알티비-오르가나이저.png",
+                        "amplifier": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/앰플리파이어.png",
+                        "shining": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/샤인스윙.png",
+                        "cutietriangle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/큐트트라이앵글.png",
+                        "fireberton": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/불쏘시개.png",
+                        "hightime": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/하이타임.png",
+                        "blackcode": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/블랙코드.png",
+                        "pureheart": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/정화된마음.png",
+                        "burstrobust": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/버스트로버스트.png",
+                        "groovetrail": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/그루브트레일.png",
+                        "fantasticker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/판타스티카.png",
+                        "pinkmilitaryband": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/군악대여단장.png",
+                        "djrequest": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/디제이리퀘스트.png",
+                        "skatjin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/스캣진.png",
+                        "aurabutler": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/오러배틀러.png",
+                        "lotusgardener": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/로터스가드너.png",
+                        "pinkfragrance": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/핑크위치.png",
+                        "typeseven": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/타입세븐.png",
+                        "belovedbeing": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/사랑받는존재.png",
+                        "rosenebula": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/장미성운.png",
+                        "selfdefense": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/셀프디펜스.png",
+                        "reachtujiend": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/만인의아이돌.png",
+                        "noblesseoblige": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/노블레스오블리주.png",
+                        "shiningdiamond": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Magical%20Rod/샤이닝다이아몬드.png"
+                  },
+                  "채찍": {
+                        "trainingchopsticks": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/조련채찍.png",
+                        "extractor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/익스트랙터.png",
+                        "snakebone": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/스네이크본.png",
+                        "rosethorn": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/로즈쏜.png",
+                        "barloggsfinger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/발록의손가락.png",
+                        "indiana2000": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/인디포디포.png",
+                        "shampython": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/샴파이톤.png",
+                        "meltingbeads": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/멜팅비즈.png",
+                        "staminaamaryllis": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/스태미나아마릴리스.png",
+                        "chainreaction": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/체인리액션.png",
+                        "seoulfootball": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/소울서커.png",
+                        "bloodytier": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/피눈물.png",
+                        "physicalpain": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/육신의몸부림.png",
+                        "flameempress": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/플레임엠프레스.png",
+                        "rossipelslefthand": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/러스펠의왼손.png",
+                        "sunkendark": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/잠식된암흑.png",
+                        "hellflame": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/지옥불.png",
+                        "painandpleasure": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/고통과쾌락.png",
+                        "earwhisper": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/귓가의속삭임.png",
+                        "snakestongue": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/뱀의혀.png",
+                        "blacknight": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Whip/흑야.png"
+                  },
+                  "낫": {
+                        "brokenopener": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/브로큰오프너.png",
+                        "leftsize": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/좌수겸.png",
+                        "triplebind": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/트리플바인더.png",
+                        "reversingmaster": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/역전의명수.png",
+                        "haunt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/방천화극.png",
+                        "cyclops": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/모노아이.png",
+                        "forestmore": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/포레스트슬래셔.png",
+                        "dragoonsize": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/용살겸.png",
+                        "watervane": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/엘로드.png",
+                        "cruelreferee": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/잔혹한심판.png",
+                        "grudgesize": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/어벤져.png",
+                        "doubt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/물음표.png",
+                        "oisosbowl": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/독수리의부리.png",
+                        "goodpeople": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/카마이타치.png",
+                        "fakewolf": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/자모겸.png",
+                        "bloodmemory": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/레드제노사이더.png",
+                        "magicsize": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/체인징포지션.png",
+                        "titansize": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/타이탄사이드.png",
+                        "grimreaper": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/데스사이드.png",
+                        "wildscissor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/와일드시져스.png",
+                        "princesscorona": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/프린세스코로나.png",
+                        "destiny": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/데스티니슬라이서.png",
+                        "goldrice": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/부농의상징.png",
+                        "fullswing": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/풀스윙.png",
+                        "mantissize": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/맨티스블레이드.png",
+                        "mooncake": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/문블레이드.png",
+                        "evilsize": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/레버너스.png",
+                        "panagiasmoth": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/어머니의은혜.png",
+                        "capricesize": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/장난꾸러기님프.png",
+                        "nomadicjourney": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/정처없는유랑.png",
+                        "requiem": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/레퀴엠.png",
+                        "souleater": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/소울이터.png",
+                        "ingenuity": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/간계.png",
+                        "gravekeeper": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/묘지기.png",
+                        "dustwalker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Scythe/더스트워커.png"
+                  },
+                  "손톱무기": {
+                        "warmthforcoldprotection": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/방한토시.png",
+                        "inananstambourine": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/이난나의탬버린.png",
+                        "elbowpad": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/엘보패드.png",
+                        "indomitablefightingspirit": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/불굴의투혼.png",
+                        "swoogerdonut": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/슈가도넛.png",
+                        "blackknittinggloves": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/검은망사장갑.png",
+                        "areaofdeath": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/데들리스페이스.png",
+                        "huntinggloves": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/헌팅마노플.png",
+                        "charmingbracelet": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/챠밍브레이슬릿.png",
+                        "seventhax": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/일곱번째비늘.png",
+                        "giantpierce": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/자이언트피어싱.png",
+                        "burningcorner": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/바이킹의헬멧.png",
+                        "knucklesisters": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/너클시스터즈.png",
+                        "revolverbangle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/리볼버뱀프레이스.png",
+                        "diamondring": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/코로나의미광.png",
+                        "jointbreaker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/조인트브레이커.png",
+                        "redscorpion": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/박제전갈.png",
+                        "mistytail": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/미스틸테인.png",
+                        "shadowsnake": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/섀도우스네이크.png",
+                        "vajra": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/바쥬라.png",
+                        "lightningdischarge": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/일렉트릭캐터펄트.png",
+                        "catharsis": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/카타르시스.png",
+                        "helixprovidence": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/헬릭스프로비던스.png",
+                        "needshuggforefoot": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/니드호그의앞발.png",
+                        "eightcoloredbirds": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/팔색조.png",
+                        "unmeasurable": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/측정불가.png",
+                        "sabertiger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/얼어붙은검지.png",
+                        "skeleton": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/스켈레톤락토마.png",
+                        "cerberusflame": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/삼두견의불꽃.png",
+                        "firstbattle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/초전박살.png",
+                        "indradedication": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/인드라의헌신.png",
+                        "overedge": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/오버엣지.png",
+                        "heavenlylight": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/천번지복.png",
+                        "hellhound": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/지옥견.png",
+                        "crustshift": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Arm%20Weapon/지각변동.png"
+                  },
+                  "책": {
+                        "renesdiary": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/레네의일기장.png",
+                        "childrensecyclopedia": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/아동용대백과사전.png",
+                        "bitmanual": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/비트사용설명서.png",
+                        "photochemistryintro": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/광자역학입문서.png",
+                        "biriffinsletters": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/빌판의연판장.png",
+                        "smagemergency": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/스머그비상연락망.png",
+                        "godombonds": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/고돔공화국건국국채.png",
+                        "damelkaidanshu": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/다멜괴담모음집.png",
+                        "monsterbook_human": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/몬스터도감-인간형.png",
+                        "hotpotpad": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/냄비받침대.png",
+                        "monsterbook_undead": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/몬스터도감-언데드.png",
+                        "monsterbook_animal": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/몬스터도감-동물형.png",
+                        "monsterbook_devil": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/몬스터도감-악마형.png",
+                        "chainmail": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/행운의편지.png",
+                        "magnacarta": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/대헌장.png",
+                        "wijaboard": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/위자보드.png",
+                        "cryofgrief": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/비탄의절규.png",
+                        "mysteriousbook": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/정체불명의화보집.png",
+                        "flandelchronicle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/프란델연대기.png",
+                        "baliarthr": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/발리아트인권선언.png",
+                        "hologramdisplay": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/홀로그램디스플레이.png",
+                        "monsterbook_godbeast": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/몬스터도감-신수형.png",
+                        "bookofdick": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/타닛의서.png",
+                        "laboratorytablet": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/라볼라스타블렛.png",
+                        "maidenmanual": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/요조숙녀길들이기.png",
+                        "heartoftheking": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/왕의진노.png",
+                        "artofwar": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/손자병법.png",
+                        "royallibrarylist": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/왕립도서관장서목록.png",
+                        "firstedition": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/초회한정판.png",
+                        "urbanlegend": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/미스테리로어.png",
+                        "truthofworld": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/삼라만상의이치.png",
+                        "attendancelist": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/출석부.png",
+                        "greekbible": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/그리크교성서.png",
+                        "ancientrecord": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/태초의기록.png",
+                        "overtechnology": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/오버테크놀로지.png",
+                        "embraceoflight": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/빛의포옹.png",
+                        "elementalaxiom": "https://raw.githubusercontent.com/rrsUnique/Unique/main/Weapon/Book/원소의잠언.png"
+                  }
+            },
+
+      "방어구": {
+                  "목걸이": {
+                        "redmuscle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/주홍줄기.png",
+                        "eyeofdawn": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/여명의눈동자.png",
+                        "shadowemblem": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/섀도우엠블렘.png",
+                        "pentacircle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/펜타서클.png",
+                        "emblem": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/봉황장.png",
+                        "genostar": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/제노스타.png",
+                        "ghostamble": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/고스트앰블.png",
+                        "pieendorgan": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/피엔도르간.png",
+                        "devilneck": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/데빌넥.png",
+                        "starlink": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/스타링크.png",
+                        "serpentalpha": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/서펜트알파.png",
+                        "magicwind": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/마도풍.png",
+                        "eelspine": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/일스파인.png",
+                        "amethystian": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/아메지스티안.png",
+                        "eyeofthewatchman": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/주시자의눈.png",
+                        "prayerforpassing": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/합격기원.png",
+                        "mistshiddenwolf": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/베이퍼닷지.png",
+                        "losttracker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/스트레이스토커.png",
+                        "steelneckguard": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/강철경갑.png",
+                        "urkcolor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/우르크칼라.png",
+                        "sacredtoolofdeath": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/죽음의성물.png",
+                        "mermaidtears": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/인어의눈물.png",
+                        "cursedstar": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/저주받은성신.png",
+                        "argoseye": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/아르고스의눈동자.png",
+                        "bitterfruit": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/인고의열매.png",
+                        "thunder": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/뇌음.png",
+                        "silvermedal": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/실버메달.png",
+                        "gaugingjewel": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/게이징쥬얼.png",
+                        "radiantglory": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/빛나는광휘.png",
+                        "kingsknot": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/국왕의매듭.png",
+                        "octahedralmirror": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Necklace/팔면경.png"
+                  },
+                  "관": {
+                        "amethyst": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/아메지스티.png",
+                        "firstpasscrown": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/장원급제관.png",
+                        "heavenlyglory": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/하늘의영광.png",
+                        "terrestrialpower": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/지상의권세.png",
+                        "flowercirclet": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/플로렌스머리띠.png",
+                        "plasticflowers": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/플라스틱플라워스.png",
+                        "sleepingroma": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/슬리핑집시.png",
+                        "elementalkingcrown": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/정령의왕.png",
+                        "sorcerercrown": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/소서러크라운.png",
+                        "iriscrown": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/이리스의관.png",
+                        "judge": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/판단하는자.png",
+                        "predictiontrap": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/예지의관.png",
+                        "wisdomoftheancients": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/선인의지혜.png",
+                        "oraclecirclet": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/오라클써클릿.png",
+                        "gynecoif": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Crown/여술사의두건.png"
+                  },
+                  "투구": {
+                        "winningbandana": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/필승머리띠.png",
+                        "crimsonhat": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/크림슨햇.png",
+                        "skullstack": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/스컬스턱.png",
+                        "alphacap": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/알파캡.png",
+                        "densefog": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/덴스포그.png",
+                        "darkvisor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/다크바이저.png",
+                        "lucidhelm": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/루시드헬름.png",
+                        "melodyofwandering": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/방랑의선율.png",
+                        "littlesunshine": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/작은해님.png",
+                        "mastercap": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/마스터캡.png",
+                        "ferbhat": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/파브모자.png",
+                        "blackironcap": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/흑철성.png",
+                        "talenthat": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/재주꾼모자.png",
+                        "earthamplifier": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/어스앰프.png",
+                        "hihat": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/하이햇.png",
+                        "grimjokerhat": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/글림조커의모자.png",
+                        "onthetop": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/최정상위.png",
+                        "lionmask": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/사자탈.png",
+                        "waterfish": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/수어지교.png",
+                        "covenantofprotection": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/비호의맹약.png",
+                        "frontline": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/프론트라인.png",
+                        "cardinaltuft": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Helm/카디널터프트.png"
+                  },
+                  "귀걸이": {
+                        "finetip": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/파인팁.png",
+                        "necrocavity": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/네크로캐비티.png",
+                        "ankletring": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/앵크이어링.png",
+                        "estbell": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/에스트벨.png",
+                        "goddessdepth": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/여신의깊이.png",
+                        "finewhisper": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/파인위스퍼.png",
+                        "revinghinge": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/레버링힌지.png",
+                        "ivorystrike": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/아이보리더스트.png",
+                        "trinityraster": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/트리니티러스터.png",
+                        "freedomempress": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/프리덤엠프레스.png",
+                        "breathofgoddess": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/여신의숨결.png",
+                        "starchild": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/스타차일드.png",
+                        "sumilayering": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/제비꽃귀걸이.png",
+                        "gorgegust": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/협곡의돌풍.png",
+                        "revelationvoice": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/계시의목소리.png",
+                        "musasong": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/뮤사의노래.png",
+                        "oddeye": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/오드아이.png",
+                        "peaceandrest": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/평안과안녕.png",
+                        "cryofnorthwind": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/삭풍의외침.png",
+                        "sunshine": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/선샤인.png",
+                        "moonshine": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/문샤인.png",
+                        "starwave": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/스타웨이브.png",
+                        "replicationsingularity": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/복사의특이점.png",
+                        "goddessfragrance": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Earing/여신의내음.png"
+                  },
+                  "망토": {
+                        "herosproof": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/히어로스프루프.png",
+                        "whiteaura": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/화이트오러.png",
+                        "fairycloak": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/요정의망토.png",
+                        "tapeshader": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/테이프쉐이더.png",
+                        "horistroll": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/홀리스트롤.png",
+                        "coolguy": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/쿨가이.png",
+                        "blackaura": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/블랙오러.png",
+                        "vortextexture": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/보텍스텍스처.png",
+                        "modernmagician": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/모던매지션.png",
+                        "accupuncturepoint": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/침혈.png",
+                        "apostatemilltrim": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/배교자밀트림.png",
+                        "quietcry": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/고요한아우성.png",
+                        "lavernaveil": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/라베르나의베일.png",
+                        "prophetofgreatmagician": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/대마법사의탁언.png",
+                        "endlessbeauty": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/유종의미.png",
+                        "windbreaker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/바람막이의가호.png",
+                        "crimsonflameafterimage": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/홍염의잔상.png",
+                        "trickyrobe": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/트리키로브.png",
+                        "unityofmatterandself": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/물아일체.png",
+                        "disaster": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/카타스트로피.png",
+                        "contemporaryartisan": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Cloak/컨템퍼러리아티잰.png",
+                  },
+                  "벨트": {
+                        "widerope": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/와이드로프.png",
+                        "binaville": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/베이너빌.png",
+                        "fortunefeel": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/포춘휠.png",
+                        "spiralbuckle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/스파이럴버클.png",
+                        "anticharger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/안티차저.png",
+                        "chainsquare": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/체인스퀘어.png",
+                        "sigscurse": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/지크의저주.png",
+                        "girderbelt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/가더벨트.png",
+                        "frozencoil": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/프로즌코일.png",
+                        "tenryubelt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/천룡요대.png",
+                        "springperiod": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/보릿고개.png",
+                        "instantaid": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/인스턴트에이드.png",
+                        "twincurl": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/트윈컬.png",
+                        "inquisitor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/인퀴지터.png",
+                        "knightsbelt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/기사용벨트.png",
+                        "goddesstemptation": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/여신의유혹.png",
+                        "amazonesbelt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/아마조네스의허리띠.png",
+                        "unfaithful": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/불공대천.png",
+                        "loosebelt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/완대.png",
+                        "exchangeofmoney": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/금란지교.png",
+                        "islesattachment": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/아이루스의집착.png",
+                        "leadersauthority": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/리더의권위.png",
+                        "soullink": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/소울링크.png",
+                        "charmofprotection": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/액막이.png",
+                        "hectorspride": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/헥터의원한.png",
+                        "bloomingcoil": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Belt/블루밍코일.png"
+                  },
+                  "장갑": {
+                        "foamguard": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/폼가드.png",
+                        "handsoftheadvent": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/핸즈오브에드버서리.png",
+                        "dadshand": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/아버지의손.png",
+                        "massrip": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/매스그립.png",
+                        "rackclutch": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/럭클러치.png",
+                        "butterflysting": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/버터플라이스팅.png",
+                        "potentialdragger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/포텐셜드래거.png",
+                        "shieldpair": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/쉴트라임.png",
+                        "venompod": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/베놈포드.png",
+                        "sturmswind": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/슈트룸빈트.png",
+                        "spectraltack": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/스펙트랄택.png",
+                        "ironfist": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/아이언피스트.png",
+                        "gridseeker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/그리드시커.png",
+                        "burningfighter": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/버닝파이터.png",
+                        "womanonscale": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/저울질하는여인.png",
+                        "continuouscirculation": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/순환의연속.png",
+                        "agecleaver": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/연륜있는재단사.png",
+                        "godhand": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/갓핸드.png",
+                        "handofauthority": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/권능의손.png",
+                        "battleacrobatics": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/전투곡예사.png",
+                        "glorygloves": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/영광의손.png",
+                        "knightoath": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/기사의맹세.png",
+                        "ironbloodwill": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/철혈의의지.png",
+                        "weaponbreaker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/무기파괴자.png",
+                        "supernova": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/초신성.png",
+                        "undefeatedmarch": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/무패행진.png",
+                        "hansfist": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/주먹대장.png",
+                        "butterfinger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Glove/버터핑거.png"
+                  },
+                  "장갑 대용": {
+                        "screwfly": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/like%20Glove/스크류플라이어.png",
+                        "longville": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/like%20Glove/도요새.png"
+                  },
+                  "팔찌": {
+                        "stancheck": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/스턴체크.png",
+                        "crosschaser": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/클로스체이서.png",
+                        "briefmarker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/브리프마커.png",
+                        "junkcase": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/정크케이스.png",
+                        "abowlofsalmon": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/장미덩굴.png",
+                        "watchguard": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/와치가드.png",
+                        "unicornbangles": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/유니콘벤딩.png",
+                        "onehundredeightytrouble": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/백팔번뇌.png",
+                        "healthbracelet": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/건강팔찌.png",
+                        "kannibarista": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/캐너발리스터.png",
+                        "tanatosyarn": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/타나토스얀.png",
+                        "magnetarmlet": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/마그네틱암릿.png",
+                        "doubleharmony": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bracelet/이중화음.png"
+                  },
+                  "공용갑옷": {
+                        "commonersdream": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/평민의꿈.png",
+                        "trollfleece": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/트롤플리스.png",
+                        "diamondleather": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/다이아몬드레더.png",
+                        "drakehusk": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/드레이크허스크.png",
+                        "turtleshell": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/터틀쉘.png",
+                        "safecage": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/세이프케이지.png",
+                        "heritageoftoral": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/트랄의유산.png",
+                        "raymentobservations": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/레이먼트오브자드.png",
+                        "thunderplate": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/썬더플레이트.png",
+                        "briskkramer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/브리스크클래머.png",
+                        "curboomskin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/클루붐의가죽.png",
+                        "officialleague": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/오피셜리그.png",
+                        "justplate": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/주스트플레이트.png",
+                        "moonlightstalker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/문라이트스토커.png",
+                        "angelrobe": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/엔젤로브.png",
+                        "drakeplume": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/드레이크플룸.png",
+                        "salineintruder": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/시린인트루더.png",
+                        "armybandsoldiers": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/전고의전사들.png",
+                        "whitenine": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/화이트나인.png",
+                        "caprescar": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/구리의상흔.png",
+                        "vitalseeker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/바이탈시커.png",
+                        "flickcoat": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/프릭코트.png",
+                        "reflectioncoating": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/리플렉션코팅.png",
+                        "hoverpillar": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/호버필라.png",
+                        "ohmmant": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/만트라옴.png",
+                        "gredbark": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/그리드바크.png",
+                        "beastberry": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/야수의탐욕.png",
+                        "bluevelvet": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/블루벨벳.png",
+                        "marudaleaf": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/말다의잎사귀.png",
+                        "mistralrune": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/미스트랄룬.png",
+                        "azraelsfullarmor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/아즈라엘의전갑.png",
+                        "talentedleader": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/타고난지도자.png",
+                        "dwarfproducts": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/난쟁이의산물.png",
+                        "holygrace": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/거룩한은총.png",
+                        "undergroundlightflame": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/지하계의광염.png",
+                        "warmfur": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/따스한털가죽.png",
+                        "giantarmor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/거신의철갑.png",
+                        "holywarrelic": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/전장의성흔.png",
+                        "skyfortress": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/천공요새.png",
+                        "eldersgarment": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/노장의의장.png",
+                        "berserkersgrudge": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/광전사의원념.png",
+                        "organicrobe": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/오가닉로브.png",
+                        "titansshoulder": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/타이탄의어깨.png",
+                        "fadedarmor": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/빛바랜갑옷.png",
+                        "sixmadness": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Common%20Armor/아삭스의광기.png"
+                  },
+                  "전용갑옷": {
+                        "buddytrust": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/버디트러스트.png",
+                        "wisdomcover": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/위스덤커버.png",
+                        "seraphbless": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/세라프의가호.png",
+                        "flyingtiger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/비호.png",
+                        "trunkbear": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/트렁크베어.png",
+                        "ellipticstyle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/에립트스타일.png",
+                        "prettyia": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/프리티미어.png",
+                        "whitesnow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/화이트스노우.png",
+                        "pewteddrape": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/퓨리프드레이프.png",
+                        "saulianskin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/사울리안의가죽.png",
+                        "curseofthenorthstar": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/북극성의저주.png",
+                        "antarcticstaranger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/남극성의분노.png",
+                        "level1librarianuniform": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/엘리트라이브러리언.png",
+                        "calluspad": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/칼스패딩.png",
+                        "wolframfur": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/볼프람의털갈이.png",
+                        "jascene": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/자쉰.png",
+                        "oldmonkclothes": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/낡은도복.png",
+                        "magicknightelipshan": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/마법기사에립션.png",
+                        "bishlquilt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/비슬퀼트.png",
+                        "beachpeach": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/비치피치.png",
+                        "rayleighsreplica": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/레일리의흔적.png",
+                        "queenofmay": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/오월의여왕.png",
+                        "damatellesskeleton": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/다마텔의갈비뼈.png",
+                        "timonamail": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/디모나의노예.png",
+                        "timonaspride": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/디모나의긍지.png",
+                        "squidclothes": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/사교무대데뷔.png",
+                        "irontorrent": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/강철바람.png",
+                        "empresssstall": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/여제의이력.png",
+                        "spellcut": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/스펠컷.png",
+                        "natureguard": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/자연의가호.png",
+                        "playofgods": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/신의변덕.png",
+                        "silencerinthedark": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/침묵과암흑.png",
+                        "maidensmanner": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/숙녀의마음가짐.png",
+                        "ominouscoat": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/불길한외투.png",
+                        "meteorwill": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/유성의의지.png",
+                        "customorder": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Exclusive%20Armor/고고한자태.png"
+                  },
+                  "신발": {
+                        "spiritofcommercial": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/스피릿오브커머셜.png",
+                        "daichiammon": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/대도무문.png",
+                        "senrishoes": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/천리화.png",
+                        "traplibira": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/트랩리빌러.png",
+                        "triprider": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/트립라이더.png",
+                        "thestrider": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/더스트라이더.png",
+                        "nikesshoes": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/니케의신발.png",
+                        "godmother": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/대모.png",
+                        "angiescontract": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/앤디의계약.png",
+                        "leatherheel": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/레더힐.png",
+                        "bassadrach": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/바서드라케.png",
+                        "snipingapex": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/스나이핑에이펙스.png",
+                        "rosenmemory": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/로젠메모랜덤.png",
+                        "statueboots": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/스태츄부츠.png",
+                        "goldenboots": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/황금구두.png",
+                        "therunawayofthefaun": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/목신의뜀박질.png",
+                        "pinkshoes": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/분홍신.png",
+                        "thesolesofthegreatgod": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/거인의발바닥.png",
+                        "ridershoes": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/라이더슈즈.png",
+                        "earthrage": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/대지의격노.png",
+                        "lostmemory": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/아련한기억.png",
+                        "jetinjector": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/제트인젝터.png",
+                        "pacemaker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/페이스메이커.png",
+                        "manawalker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/마나워커.png",
+                        "heavenlyheel": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/천상의발꿈치.png",
+                        "protectingdaoring": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/다오링의손길.png",
+                        "phenonstrap": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Boots/페논의항아리.png"
+                  },
+                  "방패": {
+                        "ironpie": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/아이언파이.png",
+                        "drakhememfanger": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/드라케넴팽거.png",
+                        "brunscoatofarms": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/브룬문장.png",
+                        "damagefortress": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/디바인포트리스.png",
+                        "finplate": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/핀플레이트.png",
+                        "forcefield": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/포스필드.png",
+                        "swordblocker": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/소드블로커.png",
+                        "balancedsaucer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/밸런스드소서.png",
+                        "bladecartridge": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/블레이드카트리지.png",
+                        "windguard": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/바람개비.png",
+                        "dejaveshield": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/데자뷰실드.png",
+                        "sunnysquare": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/썬인더스퀘어.png",
+                        "silveromparos": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/실버옴팔로스.png",
+                        "preciousroad": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/프레셔스로우드.png",
+                        "shieldofknowledge": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/망자의지혜.png",
+                        "flashspike": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/플래시스파이크.png",
+                        "eccentricfan": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/익센트릭팬.png",
+                        "mpdf": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/엠피디에프.png",
+                        "gadiuswarden": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/가디우스워든.png",
+                        "sweetraspberry": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/스위트라즈베리.png",
+                        "excavationknife": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/발굴칼.png",
+                        "undeadslayer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Shield/이모탈킬러.png"
+                  },
+                  "화살": {
+                        "albatross": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/알바트로스.png",
+                        "dolmenswings": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/고인돌깃털.png",
+                        "hawkeye": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/호크아이.png",
+                        "stabilizer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/스테빌라이저.png",
+                        "strongmissile": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/스트롱미사일.png",
+                        "burninglit": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/버닝릿.png",
+                        "vaporbolt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/베이퍼볼트.png",
+                        "frostbite": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/프로스트바이트.png",
+                        "essentialrebolt": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/에센셜리볼트.png",
+                        "tombstoneflakes": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/툼스톤플레이크.png",
+                        "myeongjeong": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/명적.png",
+                        "heavyduty": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/헤비듀티.png",
+                        "katagiri": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/편전.png",
+                        "firearrow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/화전.png",
+                        "poisonhealer": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/톡신헤일러.png",
+                        "layerblue": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/레이어블루.png",
+                        "alchemistarrow": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Arrow/알케미스트애로우.png"
+                  },
+                  "탄환": {
+                        "grenade": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/수류탄.png",
+                        "liquefiednitrogenbottle": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/액화질소병.png",
+                        "tearball": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/최루탄.png",
+                        "stone": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/짱돌.png",
+                        "equinshell": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/에킨쉘.png",
+                        "napalmbullet": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/네이팜탄.png",
+                        "chilipepper": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/칠리페퍼.png",
+                        "bluetonic": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/블루토닉.png",
+                        "hotsoup": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/핫스프.png",
+                        "quartz": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/차돌.png",
+                        "shellshell": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/철갑탄.png",
+                        "samtex": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Bullet/셈텍스.png"
+                  },
+                  "반지": {
+                        "wormbreeze": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/웜브리즈.png",
+                        "hollowcircles": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/할로우써클스.png",
+                        "edelgond": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/에델곤드.png",
+                        "dwarfbinder": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/드와프바인더.png",
+                        "brunsseal": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/브룬의국새.png",
+                        "tartcraftengagementring": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/타트크라프트의약혼반지.png",
+                        "nemurasscoffin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/님라스의수염.png",
+                        "hardfist": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/하드피스트.png",
+                        "positiveseal": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/파지티브실.png",
+                        "taikoring": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/태극지환.png",
+                        "teslaloop": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/테슬라루프.png",
+                        "solitaireservice": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/솔리테르서펜트.png",
+                        "cremermebius": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/클래머뫼비우스.png",
+                        "stingralabye": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/스팅럴러바이.png",
+                        "blackdragonsring": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/흑룡가죽반지.png",
+                        "sharkfin": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/핀오브샤크.png",
+                        "ouroboros": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/우로보로스.png",
+                        "totalsolareclipse": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/개기일식.png",
+                        "sirenstail": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/세이렌의꼬리.png",
+                        "infinityringredball": "https://raw.githubusercontent.com/rrsUnique/Unique/main/armor/Ring/인피니티링홍옥.png"
+                  }
+          }
+    };
+
+    let currentGroup = "무기";
+    let currentCategory = "한손검";
+
+    function autoResizeText(el, maxFont = 14, minFont = 10) {
+        let fontSize = maxFont;
+        el.style.fontSize = fontSize + "px";
+        el.style.justifyContent = "center";  // 기본은 가운데 정렬
+
+        while (el.scrollWidth > el.offsetWidth && fontSize > minFont) {
+            fontSize--;
+            el.style.fontSize = fontSize + "px";
+        }
+
+        // 폰트 축소로도 안 들어가면 왼쪽 정렬 + ellipsis
+        if (el.scrollWidth > el.offsetWidth) {
+            el.style.justifyContent = "flex-start";
+        }
+    }
+
+    function renderTabs() {
+      const tabContainer = document.getElementById('tabs');
+      tabContainer.innerHTML = '';
+      for (const group in itemData) {
+        const btn = document.createElement('button');
+        btn.textContent = group;
+        btn.className = (group === currentGroup) ? 'active' : '';
+        btn.onclick = () => {
+          currentGroup = group;
+          const firstSub = Object.keys(itemData[group])[0];
+          currentCategory = firstSub;
+          renderTabs();
+          renderSubTabs();
+          renderItems();
+        };
+        tabContainer.appendChild(btn);
+      }
+    }
+
+    function renderSubTabs() {
+      const subTabContainer = document.getElementById('subtabs');
+      subTabContainer.innerHTML = '';
+      for (const category in itemData[currentGroup]) {
+        const btn = document.createElement('button');
+        btn.textContent = category;
+        btn.className = (category === currentCategory) ? 'active' : '';
+        btn.onclick = () => {
+          currentCategory = category;
+          document.getElementById('searchInput').value = '';
+          renderSubTabs();
+          renderItems();
+        };
+        subTabContainer.appendChild(btn);
+      }
+    }
+
+    function findItemCategory(name) {
+      for (const main in itemData) {
+        for (const sub in itemData[main]) {
+          if (itemData[main][sub].some(i => i.이름 === name)) {
+            return { main, sub };
+          }
+        }
+      }
+      return null;
+    }
+
+    function renderItems() {
+      const grid = document.getElementById('itemGrid');
+      grid.innerHTML = '';
+      const keyword = document.getElementById('searchInput').value.toLowerCase();
+
+      let items = [];
+      if (keyword) {
+        for (const group in itemData) {
+          for (const sub in itemData[group]) {
+            items = items.concat(itemData[group][sub].filter(item =>
+              keyword.split(" ").every(kw =>
+                item.이름.toLowerCase().includes(kw) ||
+                (item.등급 && item.등급.toLowerCase().includes(kw))
+              )
+            ));
+          }
+        }
+      } else {
+        items = itemData[currentGroup][currentCategory];
+      }
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'item-card';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'image-wrapper';
+
+        const bg = document.createElement('img');
+        bg.className = 'bg-image';
+        bg.src = "https://raw.githubusercontent.com/rrsUnique/Unique/main/wallpaper/bg.png";
+        wrapper.appendChild(bg);
+
+        const itemImg = document.createElement('img');
+        itemImg.className = 'item-image';
+
+        // 전체 imageMap 순회하며 이미지 찾기
+        let imageURL = '';
+        outer: for (const group in imageMap) {
+          for (const category in imageMap[group]) {
+            const map = imageMap[group][category];
+            if (map[item.이미지]) {
+              imageURL = map[item.이미지];
+              break outer;
+            }
+          }
+        }
+
+        itemImg.src = imageURL || `images/${item.이미지}.png`;
+        itemImg.alt = item.이름;
+        wrapper.appendChild(itemImg);
+        card.appendChild(wrapper);
+
+        if (item.등급) {
+          const rank = document.createElement('span');
+          rank.className = `item-rank rank-${item.등급.toLowerCase()}`;
+          rank.textContent = item.등급;
+          card.appendChild(rank);
+        }
+
+        const name = document.createElement('span');
+        name.className = 'item-name';
+        name.textContent = item.이름;
+        card.appendChild(name);
+        requestAnimationFrame(() => autoResizeText(name));
+
+        if (keyword) {
+          const category = findItemCategory(item.이름);
+          if (category) {
+            const slot = document.createElement('div');
+            slot.className = 'slot-label';
+            slot.textContent = category.sub;
+            card.appendChild(slot);
+          }
+        }
+
+        grid.appendChild(card);
+      });
+    }
+
+    renderTabs();
+    renderSubTabs();
+    renderItems();
+  </script>
+</body>
+</html>
