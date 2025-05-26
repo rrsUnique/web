@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>사냥터 드랍테이블</title>
+    <style>
+        body { margin: 0; font-family: sans-serif; background: #f4f4f4; }
+        .container { display: flex; height: 100vh; }
+        .sidebar { width: 280px; background: #fff; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; }
+        .sidebar h2 { margin-top: 0; font-size: 18px; text-align: center; }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li { padding: 8px; cursor: pointer; border-radius: 4px; }
+        .sidebar li:hover { background: #eee; }
+        .main { flex: 1; padding: 20px; overflow-y: auto; }
+        .topbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+        .topbar input { padding: 6px 10px; width: 200px; margin-right: 10px; }
+        .topbar button { padding: 6px 12px; }
+        .map-box img { width: 100%; max-height: none; object-fit: contain; border-radius: 8px; }
+        .drop-table { display: flex; flex-direction: column; gap: 15px; margin-top: 15px; }
+        .monster-entry { display: flex; background: white; border-radius: 8px; padding: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+        .monster-left { width: 160px; text-align: center; }
+        .monster-left img.monster-image { width: 150px; height: 150px; object-fit: contain; }
+        .monster-icon { width: 17px; height: 17px; margin-top: 6px; }
+        .required { font-weight: bold; margin-top: 4px; }
+        .monster-right { display: flex; align-items: center; justify-content: center; width: 100%; }
+        .drop-items { width: 100%; font-size: 32px; font-weight: bold; text-align: center; padding: 10px; box-sizing: border-box; white-space: normal; word-break: keep-all; line-height: 1.6; }
+        .highlight { color: red; font-weight: bold; }
+        .pet-fire { color: #ff4d4d; }
+        .pet-water { color: #4d79ff; }
+        .pet-earth { color: #8d5d3f; }
+        .pet-wind { color: #00aa88; }
+        .pet-light { color: #facc15; }
+        .pet-dark { color: #663399; }
+        .image-wrapper { position: relative; }
+        .monster-name-overlay { position: absolute; bottom: 5px; left: 0; width: 100%; text-align: center; font-size: 16px; font-weight: bold; background: rgba(0,0,0,0.4); color: white; padding: 2px 0; border-radius: 4px; }
+        .drop-note { font-size: 12px; color: #d00; margin-top: 6px; }
+        .map-box { display: flex; justify-content: center; align-items: center; }
+        .map-box img { width: auto; height: auto; max-width: none; max-height: none; display: block; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="sidebar">
+        <h2>사냥터 목록</h2>
+        <ul id="mapList"></ul>
+    </div>
+    <div class="main">
+        <div class="topbar">
+            <input type="text" id="searchInput" placeholder="드랍 아이템 검색">
+            <button onclick="searchNow()">검색</button>
+        </div>
+        <div id="contentArea"></div>
+    </div>
+</div>
+
+<script>
+const petClassMap = {
+    '불펫 필요': 'pet-fire',
+    '물펫 필요': 'pet-water',
+    '대지펫 필요': 'pet-earth',
+    '바람펫 필요': 'pet-wind',
+    '빛펫 필요': 'pet-light',
+    '어둠펫 필요': 'pet-dark'
+};
+
+const iconMap = {
+    undead: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FJz6Dut6eFi2vORjjluuoLB6LAoU3TQPTex_3tF7S6ryYXwUq6ksUXu6R1rZy4MNiqhzYGlCg3rWYPmg4eE7Z8Gy7NiroHqRy7q7J_kmquH_WjCPVaCGznkBaoZKpmm78vQm2huQmXeofUYuhRig=w100-h20?key=KZQvec3QiV5HVQXkxOqGDu0h',
+    human: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EXjMkCCw8x_VFpH-NTK8I2AxOyErnrHuRWGm0s6iEsGnduTMI_W6FcLvMT2zXV-wttxHOyutmDggsMplh0m8f8oSQ0sCrX1ihR3Cfr-pHLRfbf0gA4PYIsCp04r2KpJ6qKC9YBsS8RCPu4oSi8YQ=w100-h20?key=KZQvec3QiV5HVQXkxOqGDu0h',
+    devil: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HJ2PlGhWur74iRmGbqeSvuuFSo-PdW7yrEGMzLU0o-P3JzQMMCqnXH9fFF3GGvdSNX7ttLHC4R1yk9Q2yh7EoYY5ExlozAngteMu5xtbIvfxhoodWLnt2vAnXeDMHIJl9T6Az6Tzi3kyXmg1uXLw=w100-h20?key=KZQvec3QiV5HVQXkxOqGDu0h',
+    animal: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FeAA7_FbZrafhbbF4JK5LajxZu5cisZooNLjUx_W74khV5MAHtOJ6C9Sx8s8zfVjXxb2rFrUIXhz5xxh_nvjRav5jhw3KyzlAxChYHgUgQVNJAPOBZDqj-lXV_tEekzoRVb5uQdpkusDuKW55t=w91-h20?key=KZQvec3QiV5HVQXkxOqGDu0h',
+    divine: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Edceeqk1W3ryH4PRpmUBcLorjQogOj3NFuiJDiTnz9eLJX2-ESsaR1K-61RBXbBZsHHmaFoAtznZA15DhbFHyqJK8VU5P3bOJlsOx_cf48UawPOLkQmG5XYpBPjs6DLc5OxJKfPqv8CohuClYuMg=w100-h20?key=KZQvec3QiV5HVQXkxOqGDu0h'
+};
+
+const data = {
+    BTM: {
+        name: 'Lv.1050 [BTM]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GpFgvVija04lysDgLQbk85bwZ_jq-5xpqiuc-8HS1Yr6OHX5HXi7FUgIeZBCopZtvQgVdU-v203nu4L2etuOgED_C5skbqdTFCmhy3w4gwYEk1tTW3z90eGzGeLbEVfri32eOqabSbNMgPvM7GRw?key=KZQvec3QiV5HVQXkxOqGDu0h',
+        route: '고도 (35,89) "A댷벍NPC" 선택 후 8',
+        monsters: [
+            {
+                name: '헬 하운드',
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HsTrVv79gDH1nWfGRTAYT_M5Fs3rER-Mj3Y_SM0IlXZ7gD9GUdZ072Wz0IdV9Lej2PgwCjfRHuJLoRb1UDwOXqwHolJZc7DGP_4Y5U9Zp9G3cFgrICWfK_1QlHhLx29tG3gQsICP67mECaSM7KkA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h',
+                icon: 'animal',
+                petRequirement: '불펫 필요',
+                evasion: '5,987',
+                drops: '양손검, 낫, 이빨, 전용갑옷, 장갑대용'
+            },
+            {
+                name: '랫킹',
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EENji-Bndjvs246YZXxqXffL2z282NMzHJ7NsC1QsE36qKRSGTx7i-4QMGslgWxvFyA82eRf_L0UuvsX9t8MTRB2NQ8Tj_qj0rzgka_72BNg6AVAWhbAChw5rL0hXq7Un6S8QC4eAoheja-WYniA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h',
+                icon: 'devil',
+                petRequirement: '',
+                evasion: '6,182',
+                drops: '단검, 피리, 관, 신발, 탄환'
+            },
+            {
+                name: '반달곰',
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FLwp1K2uiYThxSTtJxO560BdBUIkhMkVbOvaXpZtKoG0hnk35cJM5wgHRtzU-wIqmXoWv-xkVQEOQfYu8KXgfODt9lNKCnjQt-F9TLGB9bdRQvtYp9yfA0Lkdp_NLMfMM5YeLHmcihi8aZ0RdHgA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h',
+                icon: 'animal',
+                petRequirement: '바람펫 필요',
+                evasion: '8,465',
+                drops: '메이스, 이빨, 발톱, 망토'
+            },
+            {
+                name: '살라비라에',
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EKIFvXfwiqpktcJXQambRzda3mC3O047Bd3NhNHdhHH_mJ3Uzxv6xJ4WIPo9YWRO9PQsAvJC05mghiWPFyhaoQscQZ2-DI8VFg1SgIWpHk18B3vbJfnPfuIQu1Wjgn-m0AMOiIAkgAoLXlL68GTg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h',
+                icon: 'divine',
+                petRequirement: '물펫 필요',
+                evasion: '7,045',
+                drops: '단검, 이빨, 목걸이, 망토, 어깨문신'
+            },
+            {
+                name: '이글킹',
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GCLeTc8qpoKh5xnjEY3UuBeEcVoeL6JRbGwYKn_FS7VzR572zBEJjpJSb_R0vNbqHnYXb9GvJI4sffZVz5HL_F4r3fYIRO8enJemZsogNNmsp5vUxGptqoNd4-i9LjIJRr1fl9qmknkL8Wc5iI=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h',
+                icon: 'devil',
+                petRequirement: '바람펫 필요',
+                evasion: '5,334',
+                drops: '활, 손톱 무기, 장갑, 팔찌, 방패'
+            }
+        ]
+    },
+    mercenaryb2: {
+        name: 'Lv.1050 [마법 용병의 무덤 B2]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Hb8l5QFB6k9fEnewdq1yH2Xi2AYNCysxCmAi1dxgdg75z6cN5kHLVJaHiXj14nJzKxS9S4mpmqg3U9ckEzEVwBTk7rNkJDDQl98O-B41qwRCMbFd2mj5GvRCNM9b5qD1zZMJetP81y-ITGwVK7?key=KZQvec3QiV5HVQXkxOqGDu0h',
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 3',
+        monsters: [
+            {
+                name: '지옥의 쌍검',
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17H6KxI-31qzvXRq6m2tQpYeFXPTsOcNqUDcjg1hH8cg8CrWSql0_gBWqCoR2xGyeetAoX77lfNESgqLB7i0rhz0_IilcRDcHeK7yaq_1qNKjcWihBx5-olS8ykkKFO2vUAVJBbpYZrzdnz7P_67Rw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h',
+                icon: 'undead',
+                petRequirement: '',
+                evasion: '4,567',
+                drops: '한손검, 활, 손톱 무기, 투구, 장갑대용'
+            },
+            {
+                name: '아크리치',
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GBN8mrI_h1VJ-OkKOcIVeAKqrNDTNJgWhorDdjoF9momKRPnwduomnO_Sg9W5gryjLPbCLqIbuSHYwmMWOdtOJ00_NpCbNPSfkifgtl71yLyPu0AiZ2ma72CxhiufYXpTjLBnFutueCk0ZABXcAA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h',
+                icon: 'undead',
+                petRequirement: '불펫 필요',
+                evasion: '7,780',
+                drops: '단검, 지팡이, 책, 관, 장갑\n\n\n\n\n※ 2인 이상시 번개공격'
+            }
+        ]
+    },
+    square: {
+        name: 'Lv.1100 [그레이트 포레스트/중앙 광장]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HVzJl7xOFcO4fquRMYXIVeFfhM0VCF3SO2ae9CZBqp4wiW9ztBcCZt-ZD2xyhtayrvVv5K9qzSaHfqDGxF2563PoFHgFxySTVNaNSboC6E6gKFFMpOvuspflqZIt0DqglyB_IfGnmUuG3khCX2rg=w908-h335?key=KZQvec3QiV5HVQXkxOqGDu0h',
+        route: '고도 (35,89) "A댷벍NPC" 선택 후 9',
+        monsters: [
+            {
+                name: '엔팅',
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HuX1o4xMiin0PDzYfCT_73760n3fPkR7XAfQ2yZQUmdKb4oCQHsfBsNny8itN_aoCUc6dgR5T4OsuJPEieww-5bnV5-gqY6gBdFZl2rJPFdD8fUMWY15ul3y_Q0qaczWeogVbiYEi2gwthNg1A2A=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h',
+                icon: 'divine',
+                petRequirement: '',
+                evasion: '3,885',
+                drops: '지팡이, 메이스, 책, 귀걸이, 벨트'
+            },
+            {
+                name: '거미',
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FImdlPmMKwBKqhDTsvr0xc4LstAZ_DnIqcpqdhMmMO8S09jCK43PQ2wonbF_CgvWP5Y5OQ_HIeY4M6pTaJI54kDH6hdBSr7eJr84O9qxZyrccBmmtMVOnDMTCWyYCjSoy_o1TMh2zqtpZe487bCw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h',
+                icon: 'animal',
+                petRequirement: '',
+                evasion: '3,007',
+                drops: '한손검, 창, 손톱 무기, 장갑, 목걸이, 화살'
+            },
+            {
+                name: '켄타우로스킹',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GKR5n3zFacP-cpObFA91lWQQza2o4lib-PWOEqXlv80nH8P_tnmaisx9AtVokGdwx3CmXx-hS-qybShRQwsyu9_HsLSoWZg8JR-ClD6s4-gLcuKXW1aewmHELSsAn7yAum8ENltk_TIJpTwuH6XA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '7,461',  
+                drops: '창, 피리, 전용갑옷, 장갑대용'  
+            },
+            {
+                name: '디제스터',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Hl_KOPgKVCgGN0-GSZTnXyXlDFK2zLpAWSKCDs0fs2i9BY4OmLY4_w1Vbt-GtPTUm1XhXdT1AMsO2x6Lwe8OGdRbSoRTlumILbWmh5PgS0xjzVrW3ap9QJRoUwGxkOzN5AMPwOJ4U3NmBfG5kXbw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '7,221',  
+                drops: '날개, 피리, 망토, 귀걸이'  
+            },
+            {
+                name: '환상갑옷',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FkS9JUclxJULf0rFC5sgvKrG44oQhCIE70Gtc7_6xpyKZ3G-7k8aFk59ESrsksICGmx5_Djw4bgSTniFxh8sdi6ljZsBzneZ7oV_E-h9b9wX7GlG4QSNyWIT5lKvz-WUf2WZphnzE1pUVZbsbI=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '4,987',  
+                drops: '양손검, 낫, 활, 갑옷, 방패, 팔찌'  
+            },
+            {
+                name: '앤트',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FhnGwmwGGYqUCSVONY6275V-g2RViiVIDjOvRAzsAEAO-Yhje1AuWXStWSginoNMBG1oYr3FoE64LLMwn1Aml0GYL-imv_L4fsmUMWuWbt4LKG15HLfk9PDLRX7jOlOBkWimWnaZ3kfso2IfY3=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '6,123',  
+                drops: '창, 지팡이, 책, 귀걸이, 벨트'  
+            },
+            {
+                name: '오데론 가고일',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17F4fw3F-Sww26zB0KuCz_bcOqmUF6XAEM-r5sz11U_QGuqDGedBfY47_WwiDAqGPq98sTaY54B7nlbaW5fnUJUfCDSTxM2wX7z1vPiuNMunz33ifbriPv8FrRMxkkit8lPDPorhR5No6PPaWMXFAg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '대지펫 필요',  
+                evasion: '7,079',  
+                drops: '단검, 채찍, 발톱, 투구'  
+            },
+            {
+                name: '어벤져',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HCVRlwO5TVhGPxkmGldUnECCufh4VPVkgAHyc49bLeX_FL5fHPn7QCo9eM2zr7WF-nSZcgiXuokupb2qJitMTjLP1qfnWtB7bmF4XYkbLnNC-EkzYBr9RBGIS4ipuRVV8ZmUPXWdwRILGfIJNx8w=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '6,462',  
+                drops: '양손검, 창, 낫, 갑옷, 팔찌, 십자가'  
+            },
+            {
+                name: '둠 캐스터',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17H80gJhQXXe1e0kiQZNaREPoCPfx6qdTN6QBs2nQjLmGPYSKuCk1FqKBV-CtOIrUQHg8ns9W2UDCl-32YTKBkjus3gOW4yACwMbv3abjkE12fYHXhXiSy-a6NMP8N2rwSYtj8DmuazopptJJR74=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '불펫 필요',  
+                evasion: '6,004',  
+                drops: '지팡이, 슬링, 책, 투구, 목걸이, 탄환'  
+            },
+            {
+                name: '엘프킹',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17F0dRcqukOPehw2ONrRJO51anBBu0YeSC7bHeGMWwvQZi3M4VyC0TAuqgZMnN4350JgYvZzgbpujslRA3cHtvY8mkUbHrtHjfrfDjG0eF_1D8_logLqC4uzxbYHCHgg1v_CaSIBabYfmBrEGXAY4Q=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '8,186',  
+                drops: '한손검, 활, 손톱무기, 갑옷, 화살, 반지'  
+            },
+        ]
+    },
+
+mineb10: { 
+        name: 'Lv.1150 [폐광 B10]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GZTfFQLexzGnT7ma8LcpF5D0snUsZlJ02hxjaYyiaBUTo8B6hLTimgNsbCZLpG3Aa2DYq-cJ8JjcyW2_ykOWFgL9MS6UvB0ghwYdi47td1S39LTA7g_fL8BjmeMsAdEbBz9LTX6ErZ4H61Cimy?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "A댷벍NPC" 선택 후 10',
+        monsters: [  
+            {
+                name: '닭투사',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17E7sDdrUCTCdYOgg8LaR9MoZD7Cskt2irOMjWK-ngCyTzEvzOsqxWd-z8g1_Qo90lfjSYIAb7JwVvRQ1k1kYpVhrA6qcncwZwy5LerEWkCcorMy3sXNBiSexZrxUNqcoL5MDc4XZiyz2AHUlaWQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '1,199',  
+                drops: '한손검, 활, 손톱무기, 방패, 장갑, 팔찌, 팔문신'  
+            },
+            {
+                name: '고스트',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Hf3Y-rdi20CPg6ZcRUY5c9-cwz_hjzWgt41mt0-qV7BAy6V3DtmsTfIbkH-Nhk0Uw0PXtd4GuTvPI5NxSN8cx0_7eBOl1h-etdzhPkzCRJDsykI-CqbXS3rjUKJlWjDIbPnHlsoVTU5PcqibIy2w=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '1,211',  
+                drops: '날개, 피리, 망토, 귀걸이, 브로치'  
+            },
+            {
+                name: '콜로서스',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17F2X4MF9QGPPF6acuZypplEfyuSsRPVzUiXEUmyjd7TyOkKnPtgd5cDAxi6e6jNmWCY-axFVU1HxvOb09D9-uxsxu3Vx1ThD-vYpqGmA3fUveTSQweRwDJe8a31BY4i984fbzfcBARxahwp1Ciq=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '5,741',  
+                drops: '메이스, 이빨, 신발, 반지\n\n\n\n\n※ 2인 이상시 번개공격'  
+            },
+        ]
+    },
+
+ogreb1: { 
+        name: 'Lv.1150 [오우거 왕굴 B1]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GiizqDfotT_BuvCYglKaif2-hmTK1054idPywt3x9qvD4ZI2Fi9ztShdfz_vaQrR3Z6vFbG4rtXn-p3FYe_vH9b3A3uV2MyMTEmUE3SKy7fjfwjIZjERfn8-I_REa0i_uta6cIngaHj1hmiLHcwg?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "A댷벍NPC" 선택 후 11',
+        monsters: [  
+            {
+                name: '오우거 제너럴',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17G0iszp6ksgYreawFGSFdIkKVR009NC1N_2wCTul0QKXUlVpHKbrrnVU7ZEA83kCjNxfGcIVyG_GJlVinFye6dMbS3j7f7CQmSlOixYlZupE4x1S9sHPIS0nniiXNYU_Lemoya5LPyC3pO83A5H0g=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '6,439',  
+                drops: '메이스, 지팡이, 책, 갑옷, 귀걸이'  
+            },
+            {
+                name: '엘프킹',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FDjAOR2-LPg1pkb1Beg59jgjvl0hoXf5cL0nOK9o9QsUkFzn5pblPkEGQJZHijgS3966LnaN7uQDLFY7D7lW3z53BemQ8uEgRYr-SsGTBvGxGRJPu8yE_8aCBojcXkoiLKmw-ILSs-n6-XrO6IwA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '8,508',  
+                drops: '한손검, 활, 손톱무기, 갑옷, 화살, 팔문신, 반지'  
+            },
+        ]
+    },
+
+otb4: { 
+        name: 'Lv.1200 [오트 지하 감옥 B4]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EBaZwKPXjPeheb_5j777jNJSB9CGalH83pup9WERW-dRPdpLU37ZbhmhxrMfwneNd_KsrsDF62qCBDmh6PrPPJNYf-i9mB7_YI9tNxVoLATeN0AnjxB3zETQ3mJeba1jL0LXicyHzxbJVaYnV3?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 1',
+        monsters: [  
+            {
+                name: '화염 악마',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FAoZyVkIwXFAf-GWjAKTfKydiyncVoUfPYbrKFQpMMpX40iF-Ud-7N1D_bysvhxHEODoa3v6KIFummGmGvFyfFY1qQNW1b4bEvku5vmBdJjrq18-1BaN63CAxPBRheWd5wya-WTiNvFcwox78uCA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '불펫 필요',  
+                evasion: '6,626',  
+                drops: '이빨, 슬링, 장갑, 팔찌, 탄환'  
+            },
+            {
+                name: '어벤저',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HBF0G_shkStJlEK8GEzroObHk60CmTClMyxYnQ62H0_E4df5ehsTdp32G29G4WFECJQ9WHg6l8EW1bQgbiq4OAHISlu8S97S86nWS3Scokb9Md0T_7pP3puAYIFWB_uK5ELWa4VdSBmAsB6pdZ0g=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '6,952',  
+                drops: '양손검, 창, 낫, 갑옷, 화살, 팔찌, 십자가'  
+            },
+            {
+                name: '다크비숍',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GZ7ZwP4Vb1GG_FpkkZc2u87Opyo0839_ulpy8p74_d6ExctkTS94rXj2BYoZcrTEWbMrz6nJyGMVpMT2Vpa804FY_iB-dZJofLAsUSxL4kXaysYvXMhtVGm5t5uJkqnsmu7oJqTBAdUHVKeX7B=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '8,402',  
+                drops: '메이스, 날개, 목걸이, 투구, 방패, 십자가'  
+            },
+            {
+                name: '스노우 스콜피온',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GRTOjLrgZSn6SHnVNkKFHlSP66QiBz5KYTJ8IY_SxTshzeZ0QG4B_i8gWFluRJRSy46g6-WqflemxoDx-sfgCipLxDNPC6vlH_eGanNdq3-rwmEdIAUvll5OxheHMbNk6slDMdfltrwfg6YBoP=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '대지펫 필요',  
+                evasion: '7,660',  
+                drops: '창, 활, 투구, 방패, 팔찌'  
+            },
+            {
+                name: '환상갑옷',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HH83CyUr5M4q2xC0wc837uD2n0yGHng8iWAcMlJxheZtLdsx-qxuTBVPEw4LXB6c7QZgjObYFPDZudog6dJZl718xM3m4sBS369AGEc2xPU5w5P8v9Wy8c2lF4r2nkQlRGA2hKJGgHP38hKV3RYg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '5,344',  
+                drops: '양손검, 활, 낫, 갑옷, 방패, 팔찌'  
+            },
+        ]
+    },
+
+smalltomb1: { 
+        name: 'Lv.1200 [작은 용병의 무덤 B1]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Hx4s2fmnjXu-sH6vttHYK0XaiHfjJdyfDrlHb_MPsZePyaf_bLizW1viW_vVCUUu1HQjq7Rd9FYIfylQ7Y1w2kcmkzwWFsOilasRnMh5yBwa79d9bclKr4Qo9Sz208qBrmGC7Oq0PEX0x-LLdV?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 4',
+        monsters: [  
+            {
+                name: '다크파이어',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GrxdCy2hl84FGwhvRSGobL5j0ZC_FLXuh2mi4VHN4-zH8coGGPi6e07eV_CNzSiYPLjw0_0scAZ2eOzDU_0Qc3I7Xf2-WnKlxNeT_xeLwkp2izd3ixrlpjWRkWETQIo9M6cCAVnj5eai-MjpDi=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '어둠펫 필요',  
+                evasion: '7,132',  
+                drops: '창, 날개, 전용갑옷, 반지'  
+            },
+            {
+                name: '다이아골렘',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Exb1a4w_rBBtZfw8WSdpBANrb-20_d_swdIFRMvX_688bhdtFp-y5o5QgAEeaVBR9xxHvk4aQIEOxmDtateWyviZDFMoIJGx7hb2b0TYUNZhXNyTTnrRkVY1yY87gfdDMmdIrXLbj0JKvhYV4saQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '6,880',  
+                drops: '메이스, 낫, 관, 신발, 팔문신'  
+            },
+        ]
+    },
+
+seatemple1: { 
+        name: 'Lv.1200 [바다의 신전 B1]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FgN_LuUd-0dzoJNpecfeDePFLlFL9LWMG-jVINM1P-J8WW_QiRoTn0-9rnmAw3kNswrzPUi4IthVWoCmIF9_Gg_-TWvBWYjpYmn0y_9DM1Lfhxh7lZRWpJUwVKC7WNGvQ8emb91qn6N7j6t-UD?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 2',
+        monsters: [  
+            {
+                name: '크라켄',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Frh0Qfq1YkHbPq6QY8bbJ5d5na5d2BOqpgK8sSAlM1sikbUHy4INJWvvLtQZ_keaJ2jA7oNnDGmqGrlTP4MEJsPTnGZf02TdDaUJ4Wkl2XOAUmkdQOJU-n62Xtb6HaIbiv3ylWEntOfVx4Vs__Iw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '물펫 필요',  
+                evasion: '6,749',  
+                drops: '슬링, 채찍, 벨트, 팔찌, 탄환'  
+            },
+            {
+                name: '트리톤',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Fr8TY6HXvHzrWj7hlzJhOReVLprLVVzsTcTYpJWe8ZG4YY92lD5n5lVXoqVCBmoH7ps7evetZhg8YmyY6tGJzg1A87YSVcE2ELqRxEIsRr8M1KtKCxGthCGlfDo9KpDdDO2cDgN5O_iNU11zY5aQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '7,575',  
+                drops: '한손검, 메이스, 손톱무기, 갑옷,귀걸이, 어깨문신'  
+            },
+        ]
+    },
+
+smalltomb2: { 
+        name: 'Lv.1250 [작은 용병의 무덤 B2]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17G0O0MO8CMfrlqyoXnwK5RXZKD2jqLcrevNuwZ-lxoAPCbBQobJVKcNUMbN8YiJQ2wABvyw6G4NHnon_dUAzCubLz86TBkFb6PIcAbPPp6YuE0mRL4ZSSWZfS4XCmrDe6kpGiQ0yDtt-xluCbP-XQ?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 4, 다음층으로 걸어서 이동',
+        monsters: [  
+            {
+                name: '산송장',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Flw2pbXFSrpKz3c3DPpR4-avfFUQammGaIwIVKbDL6GFAxkmDrKe_wk-BoLSUBOYGbctRwO95P5C0MwEPZ0yJq3Rjuhbdwxz4Zp7cNQBGDD3RYbIXtdlAhOEPh9meg_8ap1S1_xvbcZZ25aIpesg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '5,959',  
+                drops: '슬링, 마법봉, 목걸이, 신발, 브로치'  
+            },
+            {
+                name: '스콜피온',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EKeUjoeQ5l_6nftObWtvRDcrix4X-Nv-7Xz8pUiI_Oon4aC5eMD9gRhKArbvRR5NEnxaCMQTF_l8qcGMCG1pUZ2aqBlVGFpwfGyE2JtxvS_B5hmIpgxaPZ9hUnvlM7hs2nGfqkwEqUB7SXCZy4-Q=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '대지펫 필요',  
+                evasion: '7,934',  
+                drops: '창, 활, 방패, 투구, 팔찌'  
+            },
+        ]
+    },
+
+seatemple2: { 
+        name: 'Lv.1250 [바다의 신전 B2]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HhZhFTR1QFjw4g6PpGMivQnwFQPG6Du3Ey0NlUswImGKSxX2yhe_oLEHlQOltgO4-KiyGv3ZyatBdocUjvH8HhbqGNX3yqh_nNTMjZbWEpmWMUKkQZuhZqdzUKRqPd3Kgp1d26lD9LAmDJZLrpjw?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 2, 다음층으로 걸어서 이동',
+        monsters: [  
+            {
+                name: '캔서',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GmOMk_tJ-DlRHsW62v0BtmtMoy4h_AgxETGQSsC8Dm-kn6qKanWovRVkn3xx3XxdT9qGBzssroB1RjxP7AdBRVKZ9bg3dOMOFy7XZh6jDvjuyPigGIHt1Tlhj00F30PJfR8TQNC4to7nj2ecgh=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '6,442',  
+                drops: '양손검, 단검, 낫, 벨트, 발톱'  
+            },
+            {
+                name: '터틀 드래곤',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17H-D2a8SlnNVIUNpzCFFM7n6ClWt-mPDxi2YtfJC0qD6b9EIobY8GDvRIM6LDReacIKJ5XzjVwKbZXrosds0erZuLYZEGaiu-_VdGaOLkUVQgwXh-BvNAdWTG2KktejNJCIXDyBcsWEmCkF2Iv-=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '7,145',  
+                drops: '지팡이, 마법봉, 책, 관, 갑옷, 방패'  
+            },
+        ]
+    },
+
+seatemple3: { 
+        name: 'Lv.1300 [바다의 신전 B3]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EGkkegKW9Zyh5rf0bhPPtk2BUxUq9YDgbg0k3p0m4RT7hzcD00DrbEW0qYQ_xun8tzcwKjBwxZh_UkvdMOjEGv5wVynDlLvy80sLnYCtcN09PYDo8KUhGM9dxAjpwHIFKT5xbEKsSkV4fN5VovHA?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 2, 다음층과 그 다음층으로 걸어서 이동',
+        monsters: [  
+            {
+                name: '나가 스피어',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FEyMbqZtuTit5CkE8jBiikUIbB3Nh5qwqWA2kO16wxG9A5gx-CrND8H-aIdWieyaAcN8gmvVb7I1o92l1yQJG4VqSfgYucP-mrpr43ajjEBJOYCcWVtCXJZGpNbyx-iitxJ60mDOiOqF6s_U6vUw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '8,186',  
+                drops: '양손검, 창, 낫, 장갑대용, 어깨문신\n\n\n\n\n※석화 사용. 이상계 저항 필수'  
+            },
+            {
+                name: '나가 랜서',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GJRvxZbU13Wk0oO6eUtqjDtz1qwr0sMqdHqmG9cPhcANaWK0TGpZBxPAdBVE2bZkgne3HjfdeCi7_7-HJY1kLm3u7n7jOH7WU3N9AVch5av9YTMLKz66t2_O6Ylo_aJ2B-uPNuyBR5Q_FvdQzIVA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '7,440',  
+                drops: '활, 슬링, 목걸이, 전용갑옷, 화살'  
+            },
+        ]
+    },
+
+mulinerf6: { 
+        name: 'Lv.1350 [물리너 타워 F6]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17G8nts4HbikRNYYysekpFGKVkMdYpvX8qWeFxsbScGBMd4CAokj94gtBcwFpHgQqFtgPk_mLzgpe2iiZVEiLB247gbblS6vXRKplKAm4EpLs7CBncXFt46WKzvkLaLNrQHqcYdf25MI0BhLv6MODA?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 5',
+        monsters: [  
+            {
+                name: '화염 악마',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EFLH0D7faIk008_yfD9i3WXNWFRT6jKHVzD_dnTvg7mWpfp8YDMi3mmw9rf9VzhN1KPTlH04XcHzC5OY7ut6winIgwT6lpRfPRGyVDBHeO_TIoYnd5y7t3cwc3pwkGLOtS8uWfo9sri95TneE57g=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '불펫 필요',  
+                evasion: '7,322',  
+                drops: '이빨, 슬링, 장갑, 팔찌'  
+            },
+            {
+                name: '살라비라에',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GyPxMzn1i5REY09iXUade8m_HehkWCsFUlC7fcMoORIlCr4z_Ct3L-FaAxYjR7bKc3PEAfR4TS4UdL7oHjrPcp9UcZX1JJOOsVPhe4fLXWz8t9ww3JfvBk30Hi7DYOyjxp8oUWp8Gq5GDQslXuXA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '물펫 필요',  
+                evasion: '8,752',  
+                drops: '이빨, 단검, 목걸이, 망토, 어깨문신'  
+            },
+            {
+                name: '다크 비숍',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EQO-J_8iGkMXaSdDAAkfmt9LA0MOqCyo4m5qH1-InBdTIc6M3lrZFNXhaGZSmpIGPzEfLMDeooVGLqkHuc4ZaaVdDofErP6MI2U_7FV6X1C6O_lRdh2pp3tHSRJId8Z--NQ0Bya_fyPq401LJvkw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '9,318',  
+                drops: '메이스, 날개, 목걸이, 투구, 방패, 십자가'  
+            },
+            {
+                name: '바포메트',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FKRk4wZPAH3B5rJ0VtRW6DlovATizNq-Aj_zbHJw5AO2WmNixcwfRrkTBBCGsEh1v-Q9VnVWOarvbCUTE6NfM5IMDEZYWD38jfkiqrc7I_3D4pK6vvjJpYDltZRLFLfsDbts0P2jpF7bPnN4aDWA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '10,713',  
+                drops: '창, 채찍, 신발, 장갑대용'  
+            },
+            {
+                name: '머미킹',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Hdh2S6R-Al0j_7EyjeRw6RFjGxoJNwx4PAzB86tPew-EG1ab-ljruDKCJ8ldUm7NQIArIX1i5UZRS9KZ_xGkOJTx5i_JaIGzXBFO8qc57AsQ4K3_MKnQm7hirL6EM4X3eQfLRsSoJfLqt28H6k9w=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '6,691',  
+                drops: '창, 채찍, 벨트, 팔찌'  
+            },
+            {
+                name: '환영',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17ENk9f7G3DI6R_LUyxZXCyfdyHTFgpTmZkbniWoCl7pU6ihIGzPrRfLKiAKjZGrsKVd01rmJg6ZCq5J-KigbkW1OXGqntl7hkeXbXHLu2GAl8jZ1LzfBAaHjpIpK1dVo-5ndwwoWza7fPREKqReCQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '6,638',  
+                drops: '날개, 피리, 망토, 귀걸이'  
+            },
+            {
+                name: '바이킹헤드',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HWpzLenWDpgoP9qHD0QJZiosB2m6SX5VEqeJ7E7tUzEvxNGmnzguElkbl77JEPY79vDxYubTqfYUVwbIjpfW7pGv2kX6F_58TBfalWbwhkKMMwbJVXYNfd9jnE55TaldJFGmqcGZqsJFC1o7uXeg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: '',  
+                petRequirement: '',  
+                evasion: '2,087',  
+                drops: '지팡이, 마법봉, 책, 전용갑옷, 관'  
+            },
+            {
+                name: '데스마스크 3',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GhsVuXu78b8AWvGUKBmond3CHxUvNHOAsaFHT-lyMg1Rp0sLL501sJjovIbmaYi14Y6qhU4U8nm2YdeYnJi8PdusoRDLUmiBfxVvRwe1SlPptI8bO0PuGg8EiU4bp1y0ivzK66PFqt6S71r1v3=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: '',  
+                petRequirement: '',  
+                evasion: '3,718',  
+                drops: '전용갑옷, 십자가'  
+            },
+            {
+                name: '데스마스크 4',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17E5xiToA3H9G3h8Rj2Zvv8gaj06yYpllIHZ4nj0EqEQ0CurG9AGZmOwPGvGgwamkSpWCh6i1iGGDr3Ja8epeD6gPmRcLbysHnhcTtRcv7Tdl9cOey_XST0MVugcT_VFsX9N_dYVWcm10b1awTafMg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: '',  
+                petRequirement: '',  
+                evasion: '2,087',  
+                drops: '메이스, 지팡이, 이빨, 마법봉, 책, 전용갑옷, 관'  
+            },
+        ]
+    },
+
+seatemple4: { 
+        name: 'Lv.1350 [바다의 신전 B4]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HTIzi_43Ff8v-rZdNRXxmr_Uh9ZixRtr_5f5AdMNY-q6yVl8uTVwmdsc4SCIw5tWIWGTYuv-7TFahy7Ao0PJhpzwfd0qrzD5_ObPP8Unj2_Ilhftwt4aSIUsBb_9_uz77LO__vqAY8gyuM63dR?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 2, 다음층과 그 다음층 또 다음층으로 걸어서 이동',
+        monsters: [  
+            {
+                name: '트리톤',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17G075UTrIuZUNuSIqoss1_8Jnh0iEuabJ9to2x9aCmcDPwkPgIje4w0m0359S6rLM-1BggUJuTHRHEE1caSbm9XC9FJ3WKShIhJyt2hFcLtTypQDLXlXoHQMjM9T-bQbu_dM3uC25of0IwIfIf0zQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '8,658',  
+                drops: '한손검, 메이스, 손톱무기, 갑옷, 귀걸이, 어깨문신'  
+            },
+            {
+                name: '어벤져',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GRVhWJkJ5SM4ux_aaHYecEvfikgt-GU8dG9biSeikWL0m5s2Pbkrx0B2wFozsKgjs-L8BWXQhM1TuEg7n7gKMMf11ggpeyEgFc5MYV3935peCR-nEsTUaT2n_3wxNK15H0RAHk-qMPpXyr4b8b2g=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '7,932',  
+                drops: '양손검, 창, 낫, 갑옷, 팔찌, 화살, 십자가'  
+            },
+        ]
+    },
+
+demonbase: { 
+        name: 'Lv.1450 [악마군 작전기지]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17H1BIKj96RmkkFQRswuLDL9Ia4jYR56ompSBkAqJpDTNLDTXcFZpQ93gRss0tXsOv1HYc5xYML0hCm4vxGC64mwME_E-vpwPMKEm_gPG-Y_Qk5sJuKz1mTivDY1h_xvKfzjDGiXELBxVxOUaA2b?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 6',
+        monsters: [  
+            {
+                name: '랫킹',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EoXDa_quZNjfNCOjJrrXGA5QASTlZtPkQguNjBFShDG1Ou3KhDshTYlDThVpsws-13FDtOeKqVD71HxusSqIeS0HzosDBG1F7vG5QUe_VGZff6ktosbb0R4Sexm92c6wudQyYTzNj_lfi5mN8Vqw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '8,131',  
+                drops: '단검, 피리, 관, 신발, 탄환'  
+            },
+            {
+                name: '사탄',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EBBZ_IHTNI94nUJg3HVL9cgYzAJG_H7oXsTMYOvbRrZuOmV3YgiVIvjuvevVu6Hndy3SzzvKRzS6i2XW9auRofMCEJX2vCIQFCclUM-cvTHlvTDvs_6JGju-YP6A6sn3ZUDPEj28TR5Fk8dP0Nyw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '9,703',  
+                drops: '지팡이, 채찍, 벨트, 십자가, 반지'  
+            },
+            {
+                name: '이프리트',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GAOO9FQmNoOrg7YdDlddZObudt0Vq_xTsvDpNPrNN3kmWg9CBhwGmm3PF-iLikIZub5NXec4QxSFO2bEs9qUVbR5843Ylp9RaJPFndqYUUDCPRmmFQaDbFed_19sraXC_gjR50aWqKpmQxLJ4tLA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '10,471',  
+                drops: '활, 마법봉, 목걸이, 신발, 화살'  
+            },
+        ]
+    },
+
+aristoi: { 
+        name: 'Lv.1450 [아리스토이의 정원]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HRk3PUhWArPIVl75CzWWZ7FazbZVQmyDmtsNsDENIRIXOIspj8EmTg8WK2AEnTt2Kf_xYFovatufRodvKi2nmaIvx-9gZc6Z2XZdSJoxO_y56Lc6FRq1-49M16PjQUD_r1BsoDBSzb9kc4QayyLQ?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 7',
+        monsters: [  
+            {
+                name: '주술사',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Fndg8LeqDh8yMvU4UB3_nlIS04z7tjUVra1BHy3ZStuiMZlE9pUTEQhyH-7s64SKEr7MqUMsy7vcEDFdQ3twqP19sem6dh-qXw7tDLXfhXPpYAGbJMy27K1zOMF2TleWeTZ1qB0mmzATaCQTM_BA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '불펫 필요',  
+                evasion: '7,587',  
+                drops: '이빨, 피리, 신발, 장갑대용, 십자가'  
+            },
+            {
+                name: '반달곰',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HiBSKtg-IbBmw7OEys7Up1n73XNDzW6cmidq6lhymRAzvCm9RbiXwz3-2AdkOxN8vf4RjqijXDzhDcfF-41TxmWIpWJxn_L3oSweEQghFm9UGjGsEA4vYbgSBOV7velu1vsijXDvkjxx3LG2Q-Pw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '바람펫 필요',  
+                evasion: '11,269',  
+                drops: '메이스, 이빨, 망토, 발톱'  
+            },
+            {
+                name: '거미',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GebyTAJcSwS0dwY4E46KJ-oP_1c_rtPxCM89KY6BXYsIXoiAUDdVmgKIRB_FHZrElT-ZxLm058G1hYqHqn7QHmO45haV8d0r-yq0d-Z8IE2f-rrzxDe1m5KYIVCkf4XmzYXjR0p8mfQPekGxrO=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '7,635',  
+                drops: '한손검, 단검, 손톱무기, 목걸이, 장갑, 화살'  
+            },
+        ]
+    },
+
+ritten: { 
+        name: 'Lv.1500 [릿텐 섬]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FHk5tQF37cmw5VJmoG8IcVvmOOFfB6JWHYJy10GmObSQCh8rL0OtbJdpiAEuQnmPG7xDddMe4xzijjvTiY8SKTMGTbl12VLGz5CeW13OAzPnm8v-EjtK5D6JAFogruCZ-SHREHkDL5F0NA36pr?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 8',
+        monsters: [  
+            {
+                name: '콩콩이',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Ffj2ROXE6dlU_WM5-GSFDhmqjiGmLJTU7T3-NTv1eMJSy_QlT0ZJTIT0IL0ZGMUwSXYBTO-U6ViQ7Ia6izCLK0Eyf2ODqWV7zMaoNieMP9-DomsB6t2kVQP-I1rxxZrZA50F0Bf2StZ7XeaZGoXg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '16,844',  
+                drops: '활, 날개, 전용갑옷, 관, 귀걸이, 화살'  
+            },
+            {
+                name: '개구리',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GOTi8VbPxN7Fy5np0UGCLmnDwqSUJCBV3bsWJfDMXtFAvoPVK7HNzMUGwrBWtjNusclJVxeyLDP_NHAvfgc4DYDPJ3rH-E31-GQ8zFr26vQssCPrxApcHVZ3SB51VCX6gy-Zdll7HOGHMkf0KEog=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '15,275',  
+                drops: '창, 지팡이, 단검, 책, 발톱, 신발, 장갑대용'  
+            },
+            {
+                name: '카멜레온',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EtDO8eS7ViqozaOta7EgM_7UtO0QMmRq8mLO3_PAiPuiF7ddyM3hFYwKq94FPm5Ftduo45r9nemeTtR1bohpeRbOVy9u4s9ZpZGWYfO4c7crdUz5wzmLG9uZDp3R_XsZMWCQY1PFvhHD2OkHxWZg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '13,391',  
+                drops: '활, 메이스, 관, 장갑대용, 화살, 팔문신'  
+            },
+            {
+                name: '펌프킨',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EG-FBMKjjV4xGCXTT-wyNK0bJjHfI3gNA5E5RIGKmZ1E142RaD4iHpE7-K3OWMl1fuD2u6CQVzI0Z7Cvkic8UP-zAy24CTxZ3Y1jJ6iDrh0Jvy-o29liZ-_WI7Y7SF1MG8HTOU6z9PBJw9Drx6tA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '불펫 필요',  
+                evasion: '15,721',  
+                drops: '피리, 목걸이, 벨트, 장갑, 신발, 반지'  
+            },
+            {
+                name: '사마귀',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HwFJWVAAblkPZuou49bgiNlp7TlPD5EasgX9iz33zmnaFcxSJsulPFnE7r91ppXK_-1HF9pEFGMi8usxnYiKccJzBTVz-1--fAuLWXIwEGjvKupiLCWbX4rShUhxAlCFbnaoK_JT-HHE7k6mW8uw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '바람펫 필요',  
+                evasion: '15,750',  
+                drops: '메이스, 날개, 단검, 낫, 벨트, 장갑'  
+            },
+            {
+                name: '퍼밀리어',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FkwfNrPkQtqs0jnb9zg8MZMFTFQiorMhBehMW06xhHk70SC02i39T7t4AF3TE9C4EiGbkCvB2ZvSGz1JfvC4mId2b4rXlLAtlvZh7OUjNGA7otxhdwv4TpbXt6xKFo2QOcbsa8_igO_FGgCxD8=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '14,258',  
+                drops: '창, 이빨, 슬링, 발톱, 벨트, 탄환, 어깨문신'  
+            },
+        ]
+    },
+
+naradae: { 
+        name: 'Lv.1500 [나라다 대습지]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Ge13Xgje-0fYHZp2OrpaSlipBEGr_aS17n7ocdhy-dfsIDLnbPv36Juh2Tf-1xfYTZIptXAj1QwyIrKooRxxgvSLQ92HTLk-7neRvE4N5XdrfMNkAjpOb7aDnrzw-zmcBofzhxV4PTFFvjxg5Khg?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "B댷벍NPC" 선택 후 9',
+        monsters: [  
+            {
+                name: '페일라이트',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Ea1HmC5l2PPuGQa3ziu125d3Q_G3EmJ-jVupM0TYu87mIJCpAqZ9Gq2KbEbqx9R5_fnuVJhx1iuZP-Lh0Cfw8SdZyyy336OzbQYVuUta1kwIpqNcGX9nb3qJQi3mGHRGwD1ab6Qf6u6bXfZDTVtQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '15,275',  
+                drops: '피리, 마술봉, 벨트, 팔찌, 방패, 팔문신'  
+            },
+            {
+                name: '크리퍼',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EDMhxiC-wW6EfyXeTQGix3srjFVFbcNNZYjU0oHDH5QfDb-PAyf_g-7WsEKi8xurUHNqOie9nARFetzFliTUud20YZId5GNqP92Q1K7mCykkNK-ECEgkQuhCtPXb4P4wVzgxSfkJYKuESADOD5jw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '11,666',  
+                drops: '메이스, 슬링, 망토, 관, 브로치'  
+            },
+            {
+                name: '키메라',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EjpOxWnUP1BjRKWh-j5UjBfbVgmeVv7OkoajlSescYPp-B4m0zv81O7knS2ZSTdLGlaTzzw1CUroaWltvIswdZW5CsUaUw_7yhy5DHpOVqRftsy7xt8p0dLuLe8hraIobAw5IDJk_qKgsBay7zFw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '15,721',  
+                drops: '이빨, 목걸이, 방패, 장갑대용, 어깨문신'  
+            },
+            {
+                name: '켄서',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17ENg2TwfrE5SKRM6yiy4H-6WwMT8s3SY5-nkcze5gY5F9GFnuKojSx7cCAkhIP-DPr_imsNJYYsu_LD0SizPewD7tMglMte1k0W7RUtFZEJ7Px1OA6QR-M4zj5KwFgr8LMol4JWXug_la7ZNhcU=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '14,036',  
+                drops: '양손검, 단검, 낫, 발톱, 벨트, 반지'  
+            },
+        ]
+    },
+
+barna: { 
+        name: 'Lv.1550 [특수 생물용 축사 Ａ동]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HcYDxkRAnZXD3q_g5QX62MmWqGaBs825udYRGsg6C7sr_gOsAkj6dtqTar_o6YILRzZNLigZe827cM0n0d64uwX8rpCfCiqWHqH-wuSQzkNN24b0vvoOMYU4mI7b7xeBs08yxzvZEiZAy5J_jpCg?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "C댷벍NPC" 선택 후 1',
+        monsters: [  
+            {
+                name: '에메랄드 버퍼',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FOiaMyz9LhOtISK0oKumROj7-P55gWUeh06E04ApvSbn3I6o6dS00aN0l29UwnGoMTqQ2XiSAIV7Pk92zNG1_ZkT4byMmRMAWRTKn14B_PtLCiWYo-cZfKWOznbBp6KucON8x0-qkSmwSKdoIddw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '대지펫 필요',  
+                evasion: '12,018',  
+                drops: '마술봉, 슬링, 채찍, 벨트, 탄환, 반지'  
+            },
+            {
+                name: '타락 예언자',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FZazaIF7maC-ymuGprq3pZY9i4d2VsSYME4nZf5MsvWiLh-MMWOVl_FNyqYZzSRmMG4O3poQrn3k0FUP3nynd1jp7xFaIdLH12dcDNOwJQ94lboyv7XfXgA17doN1JxQ_jq4ISvt3MykiMUfjJ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '17,622',  
+                drops: '단검, 채찍, 관, 벨트, 귀걸이, 어깨문신'  
+            },
+        ]
+    },
+
+barnb: { 
+        name: 'Lv.1550 [특수 생물용 축사 B동]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GrchJucEUQ55T15KOmvDBQIAUqVuLJiuC9SNtkWHqo-bIJizfW9nrT4S58xOB7-jYKAGtqWFWU5-_qptv3TMKqBG6BRbD_FLgmB_-Nivp1y8b7IRWW5UlHyY_Djagie1DZ670UYU1kKL2xToLTDg?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "C댷벍NPC" 선택 후 1, 바로 앞 포탈로 나와 바로 옆 포탈로 걸어서 이동',
+        monsters: [  
+            {
+                name: '페가수스',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FrVyrKdPFkvIDPuP23wGvMy8IwEQ7S1jUKqR480J554qAYslh6pUKJ0an84UaUILQlt1OjrYH44DgQyIUPDUM1Ho64YrD3liDS7WyL5XyxoOmlQWaZjJggX_terq5EyRVNAxYWtlXeCULe9Zwq=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '15,814',  
+                drops: '창, 활, 이빨, 팔찌, 관, 망토, 반지'  
+            },
+            {
+                name: '타락 예언자',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FZazaIF7maC-ymuGprq3pZY9i4d2VsSYME4nZf5MsvWiLh-MMWOVl_FNyqYZzSRmMG4O3poQrn3k0FUP3nynd1jp7xFaIdLH12dcDNOwJQ94lboyv7XfXgA17doN1JxQ_jq4ISvt3MykiMUfjJ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '17,622',  
+                drops: '단검, 채찍, 관, 벨트, 귀걸이, 어깨문신'  
+            },
+        ]
+    },
+
+labf1: { 
+        name: 'Lv.1600 [부정한 실험실 F1]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17E6OhZRPD5MlR_5PEzacvS1UXuK338ymtHGwm3e_hhAZpS-m_6dYPgIs4pwdgcOdDPv6TBrbO4p1mBi_61yoCWjqllCocswbhv2VEAWliJLJsPNThdt44mB7YhG-dLqqsG4IuMYiPsbXG_vPFCLGA?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "C댷벍NPC" 선택 후 2',
+        monsters: [  
+            {
+                name: '하이엘프',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17ETDqexPauPfcH7sJDClT4YNJcHK6TEbUv_7YBbEyp0jA-_SrBrenVFDgUEWx-qH4bBxIQTUqPOkneZdCx3taaYbeNZQTmg-KI7j0WZz4ApUdOGdRFNx-P4mOBlraoAXG0b2PiWK4HCy1toBf9Lxw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '14,148',  
+                drops: '한손검, 창, 손톱 무기, 투구, 방패, 브로치'  
+            },
+            {
+                name: '타락 예언자',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FZazaIF7maC-ymuGprq3pZY9i4d2VsSYME4nZf5MsvWiLh-MMWOVl_FNyqYZzSRmMG4O3poQrn3k0FUP3nynd1jp7xFaIdLH12dcDNOwJQ94lboyv7XfXgA17doN1JxQ_jq4ISvt3MykiMUfjJ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '18,407',  
+                drops: '단검, 채찍, 관, 벨트, 귀걸이, 어깨문신'  
+            },
+            {
+                name: '레드아이 마법사',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17F1psghl117RVbtKRY98gUG_mGDPC4UzbWfPRGa_si5bPk-iBOgCkcqYypUmMj2nyzggmApn2PtGMF88zvcy4GgDusfvVsywmR9cJ1D7ny7qDTRPXX4_zC9Eng6PhJZmN3d8m8q0Q_gtUvYRsMlpA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '물펫 필요',  
+                evasion: '14,773',  
+                drops: '지팡이, 마술봉, 책, 관, 망토, 브로치'  
+            },
+            {
+                name: '지옥의기사',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17ENAVn3Ei5CvznKq124Dgg5eH05AnlL39IO2yXUrf5QFRzEwbG0iaAuUlxfQGBOoTMV0cvUjCXXmcYknYEAds9VmKfSM4ZRXkdlgGV9WCTyzr2SVTyoyxQ2ajsARDxBJEij5R91rpxuaJu9h4YM7g=w201-h124?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '어둠펫 필요',  
+                evasion: '12,922',  
+                drops: '메이스, 마술봉, 발톱, 목걸이, 투구, 갑옷, 화살'  
+            },
+            {
+                name: '데스핀서',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17G6JuwqLD3QrLJnyKXnbih97sfDTYcNImGLFQLwSCgncaWpp7JYTACRpKCpX7inL8hMVC48QtWIQzUXe0OxdBIBCrlIgs2hF9xp391s9ukrenTnJg3sv3cAsc7mf4yNgi50OUryaNkI5USh-3aBUw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '15,229',  
+                drops: '이빨, 단검, 손톱무기, 발톱, 갑옷, 신발, 반지'  
+            },
+            {
+                name: '레드아이 마법사',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17F1psghl117RVbtKRY98gUG_mGDPC4UzbWfPRGa_si5bPk-iBOgCkcqYypUmMj2nyzggmApn2PtGMF88zvcy4GgDusfvVsywmR9cJ1D7ny7qDTRPXX4_zC9Eng6PhJZmN3d8m8q0Q_gtUvYRsMlpA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '물펫 필요',  
+                evasion: '14,773',  
+                drops: '지팡이, 마술봉, 책, 관, 망토, 브로치'  
+            },
+        ]
+    },
+
+labf2: { 
+        name: 'Lv.1600 [부정한 실험실 F2]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EbFQBXsoykWvYf9q6n01jFKnhVphACA_SzV3JyPX0UibDjgp0o2i0zBXxNCpSCElMpwSkKlCACidEJNJEMQtrGmRvWyzejvFUB1bOrqSVQk2mFTWqDZPkgXM4-a7B_ce9ztHrcPyfIWNUrrXFEAw?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "C댷벍NPC" 선택 후 2, 다음층으로 걸어서 이동',
+        monsters: [  
+            {
+                name: '사도',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GJ1YlLxbIoiVQFxtyO9gxpMYOeQIZ4Iof0V1h4Ez_HbemQkQGg1_tXn0YOi8OKr1M7d46AxQeEq5ynTuy4qN3FVJEASE_yOd5wfkSRiQh41BwDE5VN0ySfZMhgzExzE8K90ghOk_IuIcV62Qnj=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '14,343',  
+                drops: '날개, 피리, 슬링, 갑옷, 방패, 브로치'  
+            },
+            {
+                name: '다이아골렘',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HhuKZ2_sozIROoGMl7fvM9Fe2dkrtlJz1T3UWmeP1ZyRkFHcJ1ouyZnA5OD0casOzLMUKJ5gBwg7eqNxo4yShu-sBmwaGH-0sZIy48v07AuDrcbwFYlsolgKGJWld37WPz75gToz5xlye3DlNB=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '16,637',  
+                drops: '양손검, 메이스, 낫, 관, 신발, 팔문신'  
+            },
+            {
+                name: '레드아이 마법사',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17F1psghl117RVbtKRY98gUG_mGDPC4UzbWfPRGa_si5bPk-iBOgCkcqYypUmMj2nyzggmApn2PtGMF88zvcy4GgDusfvVsywmR9cJ1D7ny7qDTRPXX4_zC9Eng6PhJZmN3d8m8q0Q_gtUvYRsMlpA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '물펫 필요',  
+                evasion: '14,773',  
+                drops: '지팡이, 마술봉, 책, 관, 망토, 브로치'  
+            },
+            {
+                name: '타락 예언자',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FZazaIF7maC-ymuGprq3pZY9i4d2VsSYME4nZf5MsvWiLh-MMWOVl_FNyqYZzSRmMG4O3poQrn3k0FUP3nynd1jp7xFaIdLH12dcDNOwJQ94lboyv7XfXgA17doN1JxQ_jq4ISvt3MykiMUfjJ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '18,407',  
+                drops: '단검, 채찍, 관, 벨트, 귀걸이, 어깨문신'  
+            },
+            {
+                name: '스코필더',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FqxxOlYeXGmtmfOquMHyteEslF5VvFV9xGA-IwZF4ImzN0DyQJXXcHXzRwkNMLuk8fzeqMKtf9DGqk-XoFfrnrHsnGGEc-umz-JB7ftuF3_2bSRfPJ3xd9Ky-0mZgzk8b4SPun15OPkAS_aAOEMA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '14,302',  
+                drops: '메이스, 마술봉, 단검, 낫, 갑옷, 장갑\n\n\n\n\n회피불가 공격'  
+            },
+            {
+                name: '레드아이 마법사',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17F1psghl117RVbtKRY98gUG_mGDPC4UzbWfPRGa_si5bPk-iBOgCkcqYypUmMj2nyzggmApn2PtGMF88zvcy4GgDusfvVsywmR9cJ1D7ny7qDTRPXX4_zC9Eng6PhJZmN3d8m8q0Q_gtUvYRsMlpA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '물펫 필요',  
+                evasion: '14,773',  
+                drops: '지팡이, 마술봉, 책, 관, 망토, 브로치'  
+            },
+        ]
+    },
+
+atoboa: { 
+        name: 'Lv.1650 [개척지 아토보아]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HkT59yCuve0JsHvxCOqd1w5Zzsg6xdNtSOW50DJRmg8UrGoSV8A5xWC1oh6DcNQGkXwbmpOMa1yyVBXQfF405u19E908IZKr01J5GFianEvZG0MnKN3JCZS_sxcIt80KglUgMrEwbIv4t_ul2aAQ?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "C댷벍NPC" 선택 후 3',
+        monsters: [  
+            {
+                name: '아사신',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HNBttJlkzeBdGSxNIDN-XNHilYfRaWeTt__XOZncGtAxtYZTvWTIS-FAXY1-ety9s8PFULUWmsuuw72dUCeyFcRVjozelKxedG2HOAFyu_D_DaFp-SiDmB11FQsgk_5KCZ6DoX_RC3L-MdnpwCtw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '18,299',  
+                drops: '마술봉, 단검, 전용갑옷, 발톱, 화살, 반지'  
+            },
+            {
+                name: '헬하운드',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EQX4DEgEiRGh4ev36ad8fXpP_JyZv-9WCw5dPJD98ZSBhQ9pF63IyRjNlQ5IprfNWoZyLJjuIxdI0KPeRF3VWjtjdPnziGUwU_2uU4rYblpEluVsH3pGd8iPUBRWGOYC5IBOQlf4_wZjojuOs0Gg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '불펫 필요',  
+                evasion: '12,692',  
+                drops: '양손검, 낫, 이빨, 전용갑옷, 장갑대용'  
+            },
+            {
+                name: '터틀드래곤',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HgTYCelWfby8Dy9tx0SVISGEvD9_D20kHiOjEDkDXxz3Tl9gPx4uSC-Rz0lGBnNX6xL48lzS0XkIBm_L8_NXgHz6mrStuugNSUEZ1JaAvsTYrBDTWYTvB6Q7QOLcztRuVNs5TMxsrK8hgD2bF2bA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '17,179',  
+                drops: '지팡이, 마술봉, 책, 갑옷, 관, 방패'  
+            },
+            {
+                name: '블랙 엘프',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17E0CBqQ-WiA-yJJ3Oh4-twddG5AwXhV0MmO0Gq1058m26ou5ziWPUiIFWXgJeo8pa7dXkmM7h1m8ta0xh34vH3HaT90GyhehMqsmLrSuOKnFsI9AOpHmsnDFtDD_B53ddvKpAYQmeVxCgedbIpQzA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '물펫 필요',  
+                evasion: '14,714',  
+                drops: '한손검, 활, 손톱무기, 장갑, 팔찌, 팔문신'  
+            },
+            {
+                name: '티탄',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Ex1NZfz3-jbWE_N7ssJsLmT8Ad34W0VaHw58s8lD3UVX6Q2GfmLCW7-7ht0uwD87LzFQ3NjKoCModPg-gsQqEjkCEht8c9xmxlM_zEG8oH3-zxiEXd7n8iLk7lzrCzxnhj4OaumbT48z03hXCK=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '13,675',  
+                drops: '지팡이, 슬링, 책, 관, 신발, 탄환'  
+            },
+            {
+                name: '디제스터',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Htx_5iAfIbHLcVJHcacIHUMJSZDcHS_-YXsr2WUIaG7sg4WlO5unwrUlUBqrbq8n_azsvfknsWNKbnyhA8p9mt-2v5Kc-KAYcyajF0RlP0o8LgImxhF9g3e6pfF6AXZRvmOSgYqq10ElmUCZK5Dg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '불펫 필요',  
+                evasion: '19,584',  
+                drops: '날개, 피리, 목걸이, 망토, 귀걸이, 팔문신'
+            },
+        ]
+    },
+
+eternity: { 
+        name: 'Lv.1650 [영원의 회랑]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Fyx6P3a1Ibt1zcvJZTrDjGoAvoDoD5xYwE7Y6GakTc6g8RCO-dxCEuU6C546LFY-V2UDA624hQhmvlHZfjW73yUysQz2aP7wo-JckuxrEIQaY4X202TtLlyE3lesNSciYKCi3lmkzmtGEG7xBA?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "C댷벍NPC" 선택 후 4',
+        monsters: [  
+            {
+                name: '저승사자',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17G-DLa_Lx0mm0iR-cwaejsKn8f6lMXdrt055337WcaLVVyOIwDvhbXcdaG-azGeRzdehU4sQCxQLm2_lpW_LDBRATC-E-_cLQodt6mmggoj1eb_u9biNJOkNwvcsOfqpionq6m6CoBnQiw6bVB2RQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '15,263',  
+                drops: '활, 낫, 목걸이, 팔찌, 팔문신, 반지'  
+            },
+            {
+                name: '언드데록',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17E2eZIrqHF-XlUVta25ciQ8b8Kvzfef6sxV6xGYZhdYyogqejRMF2ppFiwPWjWc0oA4UL57Zk3Mo_fYGT5NWKqFqA1znzGYJFjJpRS5U9v0TRU4zNbjliGMwXULqS8KAu6YJ1KDQHd9IHg5kG152w=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '물펫 필요',  
+                evasion: '15,958',  
+                drops: '지팡이, 책, 팔찌, 망토, 브로치, 팔문신, 반지'  
+            },
+            {
+                name: '환영',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17F1Dsw_THGbttY_lWOOsU5s4Nvo-Quf9UyxCBZSB0eII0eaTCt37BwWrAJHxsq5HM0G5kdJTAeTfVIZ0XAkuHcqIxh5zhwDT6-9U1H6bAwryFnn57fsJGsGhGxLWL8o9hny0Btza6J6uDcIGz7Vcg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '14,756',  
+                drops: '날개, 피리, 전용갑옷, 망토, 귀걸이, 브로치'  
+            },
+        ]
+    },
+
+temple: { 
+        name: 'Lv.1700 [지하신전]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Fwq9eqkowvufD3kJTEe4i7QvoDpqkSzq0qYmaF5M44B-YIn9AISFwqcQhWMa7E3N9Zb5P_MifrTriVsAz9wyjHXGqM8rDeNdTupSLAKKTgBmhdYtvrsmAkaDFMd6ZUVz5oPwxnTJlPvDxbB4yt8w?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "C댷벍NPC" 선택 후 5',
+        monsters: [  
+            {
+                name: '자이언트 해골',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17E6ERI_MByerMTtRVJf3EPoHDX5tafiC7z_U10z-X_0kbM-_is6KZxuegxCsQe-12ha9EdI30D-ApBW1jARlpTH3Qf4mdbdDC97NLQAuKdBgcuOOF3dQ3Z0xCBvHOElA-n2LJiHk4lKywH0aINQ-w=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '바람펫 필요',  
+                evasion: '14,447',  
+                drops: '책, 투구, 관, 전용갑옷, 팔찌, 망토, 어깨문신'  
+            },
+            {
+                name: '환상갑옷',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17H6UnKCWe4KOYunqorx-0P4TZ5fwf05LarSmpvDrDnEKQKIN5Z0r_5pnWrtF7Y2D5qSj2vhbZZt_QNw-4rcc2uig8UenVJIBTLYmLuuxJLyPX1Bkk-Y9Geu6yZ7X3D7P0_l5kRk9WqHvNegQEkc=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '13,264',  
+                drops: '양손검, 활, 낫, 갑옷, 팔찌, 방패'  
+            },
+            {
+                name: '오버시어',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GD41Mk5KTLvrIJUV3G93onGxcN-T_xqRbTH0gpLGK8PTss0OfLzHY4a0bfFuyX5-swK6AZWYtFkfgc6JrIPMNvDxz4oYk7OFsU_8PnEdWlbGcEcC2_S_16ZKWxXhtTWcFC0rHaVNhiUPP_EhamOg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '대지펫 필요',  
+                evasion: '13,842',  
+                drops: '날개, 단검, 투구, 관, 십자가'  
+            },
+            {
+                name: '바포메트',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FZumJ6i8EUOZLDat1UxMOEad4W0pzhyqB-8Yv1w3l7lEyjPtMo97xFMFbA_78u3HfdfbfVlX5qBCUb1_lcLNjTgblmZz8tO8wfvConlIpL2qATjR8wOoy1H5GTOAClelfsthDHwr92MRRZhwkb=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '15,691',  
+                drops: '창, 채찍, 낫, 신발, 장갑대용'  
+            },
+            {
+                name: '이글헤드',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HaWdFJfqEMh4xv_ctOACWkh4B3pTi1Qv4ivveV2FZbxesdHynfWARgntj6LWzmyZSq60EgwfiRLN3ZcZVJEhafLdaFrJmVF4RskCm3DR8GhlB5QWj-lXD8sXOzpElTskHXxDlw5s3dq9iXYcFjXg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '16,765',  
+                drops: '날개, 마술봉, 팔찌, 장갑, 귀걸이, 신발'  
+            },
+            {
+                name: '살라비라에',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EmZWlc2O8DQFwo69x4_We_63WdhLcLgxCLsDqGPd9Kbk0bN2u1kS6ZuyRqOioEIQGPj70fFlw042N17eQ4VaaF0C1a73UlAAjPqVIF0hi8z_Qh_unltR5mXSHNAuxQBxraBZOJduRtwtww3eV2Cw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '물펫 필요',  
+                evasion: '20,485',  
+                drops: '단검, 이빨, 갑옷, 목걸이, 망토'  
+            },
+        ]
+    },
+
+asylum: { 
+        name: 'Lv.1700 [파헤쳐진 수용소]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17H5K7R9sHhD6cU-PJnW5pTw1i3uPgvfxUlT5XYciOlM9KY45p7nI2tQJFTkR3huwWl-sg2_Z57tdEQuEBvdcd-Da3P0dqxss2u8ZwCGTAv9YQeTEV_-p1TBV1L-PS7iyzfBimDbblY_KQlPzU-o3g?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        route: '고도 (35,89) "C댷벍NPC" 선택 후 6',
+        monsters: [  
+            {
+                name: '습격단',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FDOH9lbS_DZa0MKPmjQ3XNRjsBYIUVwz6Et7t0NUd9URCu4t3ZRL-6RNEmBDFTxRqTj23sQWH09asNf93m7hCIe8znLFHq3rcMU9DO7ufH6N1w4JhMKWMfyG24yH61QyTC4451P26aoEdIjhCBBA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '14,260',  
+                drops: '피리, 손톱무기, 발톱, 신발, 방패, 팔문신'  
+            },
+            {
+                name: '어벤져',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HSpIUeMzQHRb0h3T02CkYzwWcYbQMmL1DJzN0ipayChQgcESvIw0_OlSAY7-Ch7M_NknsnEsR7ZD7YcYwoTAoUcjyK4l6LQdfA2QeffMp4uYD41lIMekvNuNifSnjlQWPTlGrjxqRsbWttMhqt=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '13,549',  
+                drops: '양손검, 창, 낫, 갑옷, 팔찌, 화살, 십자가'  
+            },
+            {
+                name: '데스핀서',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17ErgV9WvnWfjdjrkf1LCNHwOyDqUnTBnQ3L8FiyTc1JYBaJw24dzAI_gZ6r7aYoaVECp24kPql1wbJYJKAaVLDRXKJXm2xnLsKJDHlHrwu7SuFIe_x5hv6C1-qws_TC8i89VI7v-5DG56YImnDkIA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '16,110',  
+                drops: '단검, 이빨, 손톱무기, 발톱, 갑옷, 신발'  
+            },
+            {
+                name: '산송장',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17F-IGXfCB0gZN3D-WkXZEstQVm9F7iEQi3RwIkyD_pKB3IviAOCIpOT8SqK93r4HRkeqtJxS9C-6DV3NsXY9XmPxhabhF-QTdp-HqOZC1oe7B5coDdvhUDYDwhmKPDqcrdrhOVeyMPM625-CGxvLQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '14,447',  
+                drops: '마법봉, 슬링, 목걸이, 신발, 브로치'  
+            },
+            {
+                name: '스코필더',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GdHvVm3xJhlb4oF0FX0JZCcgNLlraLzk3GPDd6C3y7EqaRQt8Zolo7owaFPvyaUjjib553Oa2gtsqrbOMSgLn57320YKVxy_DTWsBLBX7lVif9XEdn9lQEh19ITw4-fMnF0lkvKlgd5ZcPeqVr=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '',  
+                evasion: '15,126',  
+                drops: '메이스, 단검, 마술봉, 낫, 갑옷, 장갑\n\n\n\n\n회피불가 공격'  
+            },
+        ]
+    },
+
+miznab3: { 
+        name: 'Lv.1750 [저주받은 미즈나 동굴 B3]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Ho0p09ZWMmR653rf7D5aORe6YT38T6G6gWTy7gxrkTr9m3nk0Bj4dqvPwpdgtLyAqryzKhVJALbKhcqvRfdTGOiI2HflZJ4nxVrnKo2ol4zGF9BnvZ1Yybw2kDsTIwE41d-TQbekax2tgxsp9icg?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        monsters: [  
+            {
+                name: '키메라',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Eq5zC3Tv1RuAoqI4EHwOMnrAZjOCvn8ZYr6T73DhN_38q-tvJEvagk9MVbzCSma3vWKHaDrtuacdC-N0kk3yRaY6BNB3K5C8uWw4cfKEvaZb6oYgJVN1EczIBuHRhZ7gzINbgi4X2iZeFU2Afh9A=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '바람펫 필요',  
+                evasion: '18,151',  
+                drops: '이빨, 목걸이, 방패, 장갑대용, 어깨문신'  
+            },
+            {
+                name: '개구리',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EHL52zggtf1g8_kN2hwHDyuywI3vyIUYU9Wtp217GEX1pM1D321rwAmhlEtYe6-jPwYpiasXQTMDLCLTKOZlM4HXuupMWG6EBIxy8mdO4fVaHgzaT2-5AFlJp2zsWkumptoGbVvIfdCpoJchGMnw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '대지펫 필요',  
+                evasion: '17,632',  
+                drops: '창, 지팡이, 단검, 책, 발톱, 신발, 장갑대용'  
+            },
+            {
+                name: '랫킹',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GvF4Di7CbFri_JpbrAzK8VGas3szS_vJ0XDAQUuyJQe7cgIUMpc7V9cCu_nBV1KpWuWYPFHh3EpbjGn8f-ojzT6ihiX52rsf1nKBV0EUen7hZsFlnSKTQB5v8BQN554ztkMNLaH_TtiyhKcpoLpw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '18,187',  
+                drops: '이빨, 단검, 피리, 관, 신발, 탄환'  
+            },
+            {
+                name: '스콜피온',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EApwNqMgAd-C6qNsm86-LZZibw74HAoOjRT-bTUV97Ce0-j7YvcFinrPswuCoUd6RNsqUCwsGlAg-7dcqxeHcbQ5pZsMl5cQBkYme_ChCHr7AJjY55tpfiuM05kLICzEp1eI4spKxQbAv4oxuuiQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '대지펫 필요',  
+                evasion: '15,572',  
+                drops: '창, 활, 투구, 팔찌, 방패, 화살'  
+            },
+            {
+                name: '캔서',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GCiffAP1efnawRp6PdUIzUDfucplWPnVNF0Ub9b8C0f7eyqyyTIjUFBDjIL0wdEVaS1uf9B4b9a-SGNqxWL5-EjY8Dh57u3dYemIt9WsRcQo51UPEb2-pH1Tz5CGEFmYbMV5kRVDhGPfOnlMpYrg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '16,189',  
+                drops: '잡으면 입구로 텔레포트'  
+            },
+        ]
+    },
+
+island: { 
+        name: 'Lv.1750 [둘만의 외딴 섬]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FWN1r6qRvC_2Mdz5zuKv2CPrWJ2omwsU4crj3zarr_naNySbZQjAt9FHy79bnAyYdqgDVu8mgaJcIOAwdpekjKCQjc8w8AuFrRaQ18Qn8z3S4qEmR_6U0LCUs5En1E-cMW2ABx0szWlK-IqsxSMg?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        monsters: [  
+            {
+                name: '앤트',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EwylhK-NwOFTdrKiA2-WOU7U13iqmPtaRiY2OcCZYmpdTzxpHBUJj-AnS0mRLWPfYwndCBaYcLu83adPzySteTCTAp3DwNyizPBdoMYhTVxWjJ6RLqmuZrB88I_9lpGm5xWGZVgnfD96ECIEGi=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '17,224',  
+                drops: '창, 지팡이, 책, 벨트, 귀걸이'  
+            },
+            {
+                name: '거미',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17H8Hbdg81iNZNLtOVg99C-SylBZNalRhpUqEiJj3md0qSnIqgYE8fWMELubKV-nHQs3sxY-Qq7ENHnYf6iwb329AR__lP3GflqoKn5k4mvRua_Pf8_w30pOwsQHZmKlZ7BGc4x8OKzoVPJKMPQv=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '16,992',  
+                drops: '한손검, 단검, 손톱무기, 목걸이, 장갑, 화살'  
+            },
+            {
+                name: '크라켄',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GiixxCKZA03CPnUxtlPvR0iUKmxVAlaN6T2msBeHrQXWzN-nj1PO4fowmCNFf1T1nLkI0YMdWy2sKrtFSluXFgStjYJNMXLySqZF0JrhZP6gYLkKh1wshjrngUjFTUsKXK5VqtSoTDctyAWe7A3g=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '물펫 필요',  
+                evasion: '17,709',  
+                drops: '채찍, 슬링, 팔찌, 벨트, 탄환, 반지'  
+            },
+            {
+                name: '캔서',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FFkurQ7dPckH7PgzphQO8CnYvt5w7bOdz2hWI3g9LDSYXvIUF-nuJ1-tadeOodtjPjwst6zPQ6yUGqCJ03U5cVqTXfKYfcvtqY_XQ3xunjeUhIHYnlpDhbXuv9mnBFWMXY7gadoy0SYZbtRSX9FQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'animal',  
+                petRequirement: '',  
+                evasion: '16,189',  
+                drops: '양손검, 단검, 낫, 발톱, 벨트, 반지'  
+            },
+        ]
+    },
+
+storage: { 
+        name: 'Lv.1800 [레드아이 창고 초급]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17E13S-UhwBPiMxT6g3AvFddfMoxwgW_SAey0N2uzTVIxExHAC7pQPIfZXDUv736Ds04XEf6UAx-WgyswnmivdFf8n4p5_JG_jxXiuJ3VX1lqVQ1IthlDMUu3KLGvIHzvEFL0_q2we5N7iL3ttY7iw?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        monsters: [  
+            {
+                name: '레드아이 원수',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HzzCawfW-tvcz7UwpIoRD3Zt6jkbq4TsHUaSmIGQVdYi4s02bOPnPRzydAPVzZCjbFI_Ph4zEuGXZZTevQjHT96_TU38YeViguWm8CV1vrUBzQl-q0UfP5lzQDsKbX5xNLaTjMKV2LXE27GyZabQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'human',  
+                petRequirement: '불펫 필요',  
+                evasion: '17,852',  
+                drops: '피리, 마술봉, 귀걸이, 탄환, 브로치'  
+            },
+            {
+                name: '다이아골렘',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17Es4jdDbcbFTf4PEtvFxcFfX5uHq00sX1C-G_1aA69IttizbBbreKmeqIY-pTV3AAy_dEstsIdPj_gyeynv5BDn5VfBHEj2f8m1bq84ntgdlJgf-5N3PF21uJGor2Safui5fub9U01abHyjhFI2ew=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '18,576',  
+                drops: '양손검, 메이스, 낫, 관, 신발, 팔문신'  
+            },
+            {
+                name: '사탄',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GwBqW4A4POdhoi69AXkGpAoTHgPR6Y2HBg54W92AqcuMD4vy2Yx77s2OgXAqhh9atGlyTziML2XwlAfiVNxeGWj-KOg_xzlZapB43bMFaPD-QwYriMwtY9brsGTa0W8MryBSVY4WjV2rSDRYNh=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '불펫 필요',  
+                evasion: '17,177',  
+                drops: '지팡이, 채찍, 책, 반지'  
+            },
+            {
+                name: '이프리트',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17H6YswS6NpP9t_YagIZ7w-x1KoyuOaMwHdqLe4dRJkNc-WA6Ayebvg5d39g7bhzBZGTCL83doLZi78bFUX80N3NFDNJuExEjg6qyWnq_bt6aA9eJX8LHmHJ57T2FtUuFAPvBhtgASnf-mpWNzwCvw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '불펫 필요',  
+                evasion: '18,606',  
+                drops: '창, 활, 목걸이, 신발, 브로치'  
+            },
+            {
+                name: '환상갑옷',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HhqkUmfu80S1pFFEj459wLLZqIg1t-i0zw-FBiVBUqs5IuvpcjuoywCXUBTtpBKrCbi3NL_fKJMPfTmPdDUFRyB5xZYSgKQ0UkLdXO7WwmZv1qphYalB_vMG9pOQT9wtO-p-JqFkrYBLqnarSHHw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '13,979',  
+                drops: '양손검, 활, 낫, 방패, 팔찌'  
+            },
+        ]
+    },
+
+ruins: { 
+        name: 'Lv.1800 [데프 힐스 고대 유적 초급]',
+        map: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HA7_w_VQYxCDJx_wv1UxiA8E10WMFbbQ2jXGH-dNNsXQOkcyVWmgbovLSpyQvxkZG-ZiUt2aWZfxmW6Sv4O9wOZEuN1tm-_gZTUGsOK1BWmcov25W6j1VKcyoTLM2hjX_R1nc4rzAP-lsLh_4Wlw?key=KZQvec3QiV5HVQXkxOqGDu0h',  
+        monsters: [  
+            {
+                name: '오버시어',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EVKJuuQ3emUvQvWW1eS-wDwy66qXgizxRszLtRrY40HetySQ4YfULrb3ODK-CHyN1yFQpJcEb70qetZzH_67LFtdVBUmJlEJn7fQNSmkXFsQY32ardciCQIUp35NPpWkWTTg4g1brAI5o7MrAt0Q=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '대지펫 필요',  
+                evasion: '14,590',  
+                drops: '단검, 날개, 투구, 관, 십자가'  
+            },
+            {
+                name: '사탄',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HFRSPYu2lPDoiClxfSU4ixqqW7qBbYaNmhPxvshrON3fAEb0FPxFm0KSNFaixqVBRqBdZ8sPH_edUitCN3pCekZAQwKDi_PgW7C7MbMuYXxEa7kJoYEpYznT2NrJuPVs2fOqZnnQKtRGhzCCRQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '불펫 필요',  
+                evasion: '18,576',  
+                drops: '지팡이, 단검, 채찍, 책, 벨트, 반지, 십자가'  
+            },
+            {
+                name: '임프',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17FHwlYnAIxCbvIFesVihIW6Ur_G_lIDo5ZwCkPxnzP19KArbti2aRiP7dE4nnLuEr54dDcwg_zqqEDbq22aD8OiPV8au1KxjEuYVQIX9UdIv4VxXyDIG_Narh3reAiNMmkkMr3y2SJmdaPXaqLUXw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '16,889',  
+                drops: '창, 이빨, 슬링, 벨트, 발톱, 탄환, 어깨문신'  
+            },
+            {
+                name: '나가 스피어',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17HaKP3XjpjvfKpHjcryZDlnKe9O4GPXpbYwB2NXnzifP1vOk0VYK1AJxxU3gb_onk_Je18Nrb-dvDDTf5Y2J5bGwKl3gs9-tGt4CZOmGvCWyyqiJqfK-tFFsroeBoVGi1llvnGD5g8AkwbHloq5uQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '20,850',  
+                drops: '양손검, 창, 낫, 장갑, 장갑대용, 어깨문신'  
+            },
+            {
+                name: '나가 랜서',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EiA5lU2p0eCm_vJiRxZ3lcDaARxGpafxDD4wixTVhTzZ0VHoL17wYc1N356oY8MJuYLsghh4YdSUfGQ_4mLLe4IT5EQ_5l5Zka1Nn_JHnbosGtV4ehVXH2Z-ML7KckvI-17vlgJGUkvaS-WBqZhQ=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'devil',  
+                petRequirement: '',  
+                evasion: '14,456',  
+                drops: '창, 활, 슬링, 전용갑옷, 목걸이, 화살'  
+            },
+            {
+                name: '환영',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17EnN5Zj-a3lvjlzOYjmBEL79m-dwVVRgP5E4xcSt3mqnZdG8rmdO7y9KGXaRbSPjkaM3wLxwKHVRih0laH2euXLjiWrAKlgJFO_pOeNVMm95Awuiuq5XaDiW4RJi-hMXQridnxo5n1Ikxjhq7078g=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '15,996',  
+                drops: '피리, 날개, 전용갑옷, 귀걸이, 망토, 브로치'  
+            },
+            {
+                name: '환상갑옷',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17E2jdOK40ixFovG5WIK5X8UQeILbucfowZLuuQIOisd7oSCik1I85_vqm4r6NvzeNUF5656mn6tAklkjEoe2zWo5_z7XxtYqk-VNJoddCRSjAe9AzMZNq8T0gabn3PLIIZ0_gCV1NkxA8CJrdgC-w=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '13,979',  
+                drops: '양손검, 활, 낫, 갑옷, 팔찌, 방패'  
+            },
+            {
+                name: '머미킹',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GgAOy3snAwbq2kfD8ASNMuu-L8HiyB8IQtAefrooS_H1Mt8Eb0hHzZD1xBdMPB61Jm06wvroga-wkSC37IebXxG94ErAtioiz9foCLHnLJOKQ9qHn13FtmvYHFtbWGerShwxm-dV03TIe_A2XP8w=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '16,141',  
+                drops: '창, 채찍, 벨트, 팔찌, 반지'  
+            },
+            {
+                name: '드라큘라',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GPyap_8cEsa6myAUrubUC3cW10htdTpuxjUzaq0hmxfcPmzfwW5syQE6k8_-eZG-Mso48nuX7SBs0e2I27OUuZDN9YSV6iwfmE4ZnRhYsL8XXp8yuu9vxQPO0wfqZ9VNl4po5iy5vl1Q_oSsWuOw=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '',  
+                evasion: '14,393',  
+                drops: '피리, 채찍, 전용갑옷, 망토, 반지, 브로치'  
+            },
+            {
+                name: '아크리치',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GAc9kpU5XMwRdaFeZ9vDO6YBYnaYab7v2Q6Pz2u1WQgIvQQGJX0eYvL2ywEMt8q5tYh4ty_LOaKnOAMUBSOlOvYDe_3_lRE60gAWFTgRF2XkLYqL4fBOkOZhlw3vXfLW4a5LIvgZhJ0IopMKzVrg=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'undead',  
+                petRequirement: '불펫 필요',  
+                evasion: '14,864',  
+                drops: '지팡이, 단검, 책, 장갑, 관'  
+            },
+            {
+                name: '다이아골렘',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GvtJm4rWcoml3grko1Hlq76BWgVAVJFYcK-OL1YVJ8x7KsrZHGeOwh5g-GxVjXiEClEv4CSVuuJtcSRsVjTcxomM3Oi8IzmwjSYEXuAsrvGsgB3aiExMOC8O3PqIzoyY6BrlaX9j47Ypmy8XN6Ow=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '18,576',  
+                drops: '양손검, 메이스, 낫, 관, 신발, 팔문신'  
+            },
+            {
+                name: '페일라이트',  
+                image: 'https://lh7-rt.googleusercontent.com/sheetsz/AHOq17GovgIMBDH4UmxQPwwcb-rWU8p1wfz5lbamklp0_8rI4xTlsVNwJ1QsP1P5a1VtqyVDm0qbng6p3EkdOmniij6FYUL-WwBIhlotYDHqS9jLniaWQpRTSfZdf69373mV6UiCw1ErF7uNP9B_jT8mKA=w201-h146?key=KZQvec3QiV5HVQXkxOqGDu0h', 
+                icon: 'divine',  
+                petRequirement: '',  
+                evasion: '18,103',  
+                drops: '피리, 마술봉, 벨트, 팔찌, 방패, 팔문신'  
+            },
+        ]
+    }
+};
+
+let currentKeyword = '';
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderSidebar(keyword = '') {
+    const mapListElement = document.getElementById('mapList');
+    mapListElement.innerHTML = '';
+    for (const key in data) {
+        const ground = data[key];
+        const match = ground.monsters.some(monster =>
+            !keyword || monster.drops.match(new RegExp(escapeRegExp(keyword), 'i'))
+        );
+        if (match) {
+            const li = document.createElement('li');
+            li.textContent = ground.name;
+            li.onclick = () => renderAll(currentKeyword, key);
+            mapListElement.appendChild(li);
+        }
+    }
+}
+
+function renderAll(keyword = '', selectedMap = '') {
+    currentKeyword = keyword;
+    const container = document.getElementById('contentArea');
+    container.innerHTML = '';
+
+    const regex = keyword.trim() ? new RegExp(`(${escapeRegExp(keyword)})`, 'gi') : null;
+
+    renderSidebar(keyword);
+
+    const dividerRules = {
+        square: [
+            { name: '엔팅', label: '외각' },
+            { name: '거미', label: '외각' },
+            { name: '켄타우로스킹', label: '내각' },
+            { name: '디제스터', label: '내각' },
+            { name: '환상갑옷', label: '내각' },
+            { name: '앤트', label: '내각' },
+            { name: '오데론 가고일', label: '내각' },
+            { name: '어벤져', label: '내각' },
+            { name: '둠 캐스터', label: '내각' },
+            { name: '엘프킹', label: '내각' }
+        ],
+        labf1: [
+            { name: '하이엘프', label: '윗자리' },
+            { name: '타락 예언자', label: '윗자리' },
+            { name: '레드아이 마법사', label: '윗자리' },
+            { name: '지옥의기사', label: '아랫자리' },
+            { name: '데스핀서', label: '아랫자리' },
+            { name: '레드아이 마법사', label: '아랫자리' }
+        ],
+        labf2: [
+            { name: '사도', label: '윗자리' },
+            { name: '다이아골렘', label: '윗자리' },
+            { name: '레드아이 마법사', label: '윗자리' },
+            { name: '타락 예언자', label: '아랫자리' },
+            { name: '스코필더', label: '아랫자리' },
+            { name: '레드아이 마법사', label: '아랫자리' }
+        ],
+        temple: [
+            { name: '자이언트 해골', label: '왼쪽' },
+            { name: '환상갑옷', label: '왼쪽' },
+            { name: '오버시어', label: '가운데' },
+            { name: '바포메트', label: '가운데' },
+            { name: '이글헤드', label: '오른쪽' },
+            { name: '살라비라에', label: '오른쪽' }
+        ],
+        ruins: [
+            { name: '오버시어', label: '외각' },
+            { name: '사탄', label: '외각' },
+            { name: '임프', label: '외각' },
+            { name: '나가 스피어', label: '외각' },
+            { name: '나가 랜서', label: '외각' },
+            { name: '환영', label: '내각' },
+            { name: '환상갑옷', label: '내각' },
+            { name: '머미킹', label: '내각' },
+            { name: '드라큘라', label: '내각' },
+            { name: '아크리치', label: '내각' },
+            { name: '다이아골렘', label: '최내각' },
+            { name: '페일라이트', label: '최내각' },
+        ]
+    };
+
+    for (const key in data) {
+        if (selectedMap && selectedMap !== key) continue;
+
+        const ground = data[key];
+        const monsters = ground.monsters;
+
+        // 필터 키워드 조건을 만족하는 몬스터만 추리기
+        const matchedMonsters = monsters.filter(monster =>
+            !regex || monster.name.match(regex) || monster.drops.match(regex)
+        );
+        if (matchedMonsters.length === 0) continue;
+
+        const section = document.createElement('div');
+        section.className = 'map-section';
+
+        const mapBox = document.createElement('div');
+        mapBox.className = 'map-box';
+        mapBox.innerHTML = `<img src="${ground.map}" alt="${ground.name}">`;
+        section.appendChild(mapBox);
+        if (ground.route) {
+            const routeText = document.createElement('div');
+            routeText.style.marginTop = '8px';
+            routeText.style.fontSize = '14px';
+            routeText.style.color = '#555';
+            routeText.style.textAlign = 'center';
+            routeText.textContent = `이동 방법: ${ground.route}`;
+            section.appendChild(routeText);
+        }
+
+        const dropTable = document.createElement('div');
+        dropTable.className = 'drop-table';
+
+        const maxEvasion = Math.max(
+            ...matchedMonsters.map(m => parseInt(m.evasion.replace(/,/g, '')) || 0)
+        );
+
+        // ✅ 그룹화 및 순서 보존
+        const labelGroups = {};
+        const labelOrder = [];
+        const defaultGroup = '__default__';
+        const rules = dividerRules[key] || [];
+
+        matchedMonsters.forEach(monster => {
+            const matchedLabels = rules
+                .filter(rule => rule.name === monster.name)
+                .map(rule => rule.label);
+
+            const targetLabels = matchedLabels.length > 0 ? matchedLabels : [defaultGroup];
+
+            let alreadyAssigned = false;
+            targetLabels.forEach(label => {
+                if (!labelGroups[label]) {
+                    labelGroups[label] = [];
+                    labelOrder.push(label);
+                }
+
+                // 같은 몬스터가 여러 label에 들어가지 않도록 중복 제거
+                if (!alreadyAssigned && !labelGroups[label].some(m => m.name === monster.name)) {
+                    labelGroups[label].push(monster);
+                    alreadyAssigned = true;
+                }
+            });
+        });
+
+        labelOrder.forEach(label => {
+            const monsters = labelGroups[label];
+            if (label !== defaultGroup) {
+                const divider = document.createElement('div');
+                divider.textContent = label;
+                divider.style.fontSize = '20px';
+                divider.style.fontWeight = 'bold';
+                divider.style.margin = '20px 0 10px';
+                divider.style.textAlign = 'center';
+                divider.style.background = 'white';
+                divider.style.borderRadius = '8px';
+                divider.style.padding = '10px';
+                divider.style.boxShadow = '0 0 5px rgba(0,0,0,0.1)';
+                dropTable.appendChild(divider);
+            }
+
+            monsters.forEach(monster => {
+                const petClass = petClassMap[monster.petRequirement] || '';
+                const iconUrl = iconMap[monster.icon] || '';
+                const iconHtml = iconUrl ? `<img src="${iconUrl}" alt="icon" class="monster-icon">` : '';
+                const evasionValue = parseInt(monster.evasion.replace(/,/g, '')) || 0;
+                const isMax = evasionValue === maxEvasion;
+                const evasionHtml = `
+                    <div style="margin-top: 4px;">
+                        필요 운 : <strong style="color: ${isMax ? 'red' : 'black'}">${monster.evasion}</strong>
+                    </div>
+                `;
+                const [mainDropRaw, ...extraParts] = monster.drops.split('\n');
+                const mainText = regex ? mainDropRaw.replace(regex, '<span class="highlight">$1</span>') : mainDropRaw;
+                const extraHtml = extraParts.length > 0 ? `<div class="drop-note">${extraParts.join('<br>')}</div>` : '';
+
+                const entry = document.createElement('div');
+                entry.className = 'monster-entry';
+                entry.innerHTML = `
+                    <div class="monster-left">
+                        <div class="image-wrapper">
+                            <img src="${monster.image}" alt="${monster.name}" class="monster-image">
+                            <div class="monster-name-overlay">${monster.name}</div>
+                        </div>
+                        ${iconHtml}
+                        ${monster.petRequirement ? `<div class="required ${petClass}">※ ${monster.petRequirement}</div>` : ''}
+                        ${evasionHtml}
+                    </div>
+                    <div class="monster-right">
+                        <div class="drop-items">${mainText}${extraHtml}</div>
+                    </div>
+                `;
+                dropTable.appendChild(entry);
+            });
+        });
+
+        section.appendChild(dropTable);
+        container.appendChild(section);
+
+        return; // 첫 사냥터만 출력
+    }
+}
+
+function searchNow() {
+    const keyword = document.getElementById('searchInput').value;
+    renderAll(keyword);
+}
+
+window.onload = () => {
+    renderSidebar();
+    const input = document.getElementById('searchInput');
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') searchNow();
+    });
+};
+</script>
+</body>
+</html>
