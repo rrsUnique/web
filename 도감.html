@@ -2074,23 +2074,27 @@
     }
 
     function renderItems() {
-      const grid = document.getElementById('itemGrid');
-      grid.innerHTML = '';
-      const keyword = document.getElementById('searchInput').value.toLowerCase();
+  const grid = document.getElementById('itemGrid');
+  grid.innerHTML = '';
 
-      let items = [];
-      if (keyword) {
-        for (const group in itemData) {
-          for (const sub in itemData[group]) {
-            items = items.concat(itemData[group][sub].filter(item =>
-              keyword.split(" ").every(kw =>
-                item.이름.toLowerCase().includes(kw) ||
-                (item.등급 && item.등급.toLowerCase().includes(kw))
-              )
-            ));
-          }
-        }
-      } else {
+  const rawKeyword = document.getElementById('searchInput').value;
+  const keyword = rawKeyword.replace(/\s+/g, '').toLowerCase();  // 공백 제거
+
+  let items = [];
+  if (keyword) {
+    for (const group in itemData) {
+      for (const sub in itemData[group]) {
+        items = items.concat(itemData[group][sub].filter(item => {
+          const itemNameNoSpace = item.이름.replace(/\s+/g, '').toLowerCase();
+          const itemGrade = (item.등급 || '').toLowerCase();
+
+          return keyword.split(" ").every(kw =>
+            itemNameNoSpace.includes(kw) || itemGrade.includes(kw)
+          );
+        }));
+      }
+    }
+  } else {
         items = itemData[currentGroup][currentCategory];
       }
 
