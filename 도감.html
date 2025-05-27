@@ -2222,8 +2222,10 @@ async function countNonStandardImages() {
   const percent = total > 0 ? ((nonStandardCount / total) * 100).toFixed(2) : "0.00";
   const counter = document.getElementById("imageCounter");
   if (counter) {
-    counter.innerText = `${nonStandardCount} / ${total} (${percent}%)`;
-  }
+  const adjusted = Math.max(nonStandardCount - 1, 0);  // -1 적용
+  const percent = total > 0 ? ((adjusted / total) * 100).toFixed(2) : "0.00";
+  counter.innerText = `${adjusted} / ${total} (${percent}%)`;
+}
 }
 
 window.addEventListener("load", () => {
