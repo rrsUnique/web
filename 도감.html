@@ -116,7 +116,7 @@
     .rank-800umu { color: #C800C8 !important; }
     .rank-900umu { color: #F870F8 !important; }
     .rank-1000umu { color: #F80000 !important; }
-	.rank-1500umu { color: #FFD700 !important; }
+	.rank-1500umu { color: #B8B800 !important; }
     .rank-bfu { color: #C88800 !important; }
 
     .item-name {
@@ -2221,11 +2221,10 @@ async function countNonStandardImages() {
 
   const total = items.length;
   const percent = total > 0 ? ((nonStandardCount / total) * 100).toFixed(2) : "0.00";
+
   const counter = document.getElementById("imageCounter");
   if (counter) {
-  const adjusted = Math.max(nonStandardCount - 1, 0);  // -1 적용
-  const percent = total > 0 ? ((adjusted / total) * 100).toFixed(2) : "0.00";
-  counter.innerText = `${adjusted} / ${total} (${percent}%)`;
+  counter.innerText = `${nonStandardCount} / ${total} (${percent}%)`;
 }
 }
 
